@@ -41,8 +41,12 @@ class DocstringModifier(cst.CSTTransformer):
         # Build lookup map for faster access
         self.construct_lookup = {}
         for construct in usage_map:
-            key = (construct.name, construct.line_number, str(construct.file_path))
-            self.construct_lookup[key] = construct
+            # Use file path as key for simpler matching
+            if construct.file_path not in self.construct_lookup:
+                self.construct_lookup[construct.file_path] = {}
+            self.construct_lookup[construct.file_path][construct.name] = construct
+            
+        logger.debug(f"Built construct lookup for {len(usage_map)} constructs")
     
     def set_current_file(self, file_path: Path) -> None:
         """Set the current file being processed."""
@@ -111,11 +115,19 @@ class DocstringModifier(cst.CSTTransformer):
     
     def _find_construct(self, name: str, line_number: int) -> Optional[Construct]:
         """Find a construct by name and line number."""
-        if not self.current_file:
+        if not self.current_file or self.current_file not in self.construct_lookup:
             return None
             
-        key = (name, line_number, str(self.current_file))
-        return self.construct_lookup.get(key)
+        # Simple name-based lookup for now
+        file_constructs = self.construct_lookup[self.current_file]
+        construct = file_constructs.get(name)
+        
+        if construct:
+            logger.debug(f"Found construct {name} in {self.current_file}")
+        else:
+            logger.debug(f"Construct {name} not found in {self.current_file}, available: {list(file_constructs.keys())}")
+            
+        return construct
     
     def _get_node_line(self, node) -> int:
         """Get the line number of a node (simplified - LibCST doesn't store line numbers directly)."""
@@ -307,18 +319,25 @@ class LibCSTModifier:
         # Group constructs by file
         file_constructs: Dict[Path, Dict[Construct, List[Reference]]] = {}
         
+        logger.debug(f"Processing {len(usage_results)} constructs for modification")
+        
         for construct, references in usage_results.items():
             if not references:  # Skip constructs with no references
+                logger.debug(f"Skipping {construct.name} - no references")
                 continue
                 
             file_path = construct.file_path
             if file_path not in file_constructs:
                 file_constructs[file_path] = {}
             file_constructs[file_path][construct] = references
+            logger.debug(f"Will modify {construct.name} in {file_path} ({len(references)} references)")
+        
+        logger.info(f"Will modify {len(file_constructs)} files")
         
         # Modify each file
         results = {}
         for file_path, construct_map in file_constructs.items():
+            logger.debug(f"Modifying {file_path} with {len(construct_map)} constructs")
             success = self.modify_file(file_path, construct_map)
             results[str(file_path)] = success
         
