@@ -11,10 +11,16 @@
 #------------------------------------------------------------------------------
 [project]
 name = 'uzpy' # Package name on PyPI
-description = '' # Short description
+description = 'A tool to track where Python constructs are used and update docstrings' # Short description
 readme = 'README.md' # Path to README file
 requires-python = '>=3.10' # Minimum Python version
 keywords = [
+    'documentation',
+    'code-analysis',
+    'ast',
+    'tree-sitter',
+    'docstrings',
+    'usage-tracking',
 ] # Keywords for PyPI search
 dynamic = ["version"] # Fields set dynamically at build time
 
@@ -33,6 +39,15 @@ classifiers = [
 ]
 
 dependencies = [
+    "tree-sitter>=0.20.0",
+    "tree-sitter-python>=0.20.0",
+    "rope>=1.7.0",
+    "jedi>=0.19.0",
+    "libcst>=1.0.0",
+    "fire>=0.5.0",
+    "rich>=13.0.0",
+    "loguru>=0.7.0",
+    "pathspec>=0.11.0",
 ]
 
 # Author information
@@ -64,6 +79,7 @@ dev = [
     'absolufy-imports>=0.3.1', # Convert relative imports to absolute - Keep absolufy-imports as is, update if newer absolufy-imports version is required
     'pyupgrade>=3.19.1', # Upgrade Python syntax - Keep pyupgrade as is, update if newer pyupgrade version is required
     'isort>=6.0.1', # Sort imports - Keep isort as is, update if newer isort version is required
+    'autoflake>=2.0.0', # Remove unused imports and variables
 ]
 
 # Testing tools and frameworks
@@ -85,6 +101,9 @@ docs = [
 
 # All optional dependencies combined
 all = [
+    "uzpy[dev]",
+    "uzpy[test]", 
+    "uzpy[docs]",
 ]
 
 #------------------------------------------------------------------------------
@@ -92,7 +111,7 @@ all = [
 # Entry points for command-line executables installed with the package.
 #------------------------------------------------------------------------------
 [project.scripts]
-# CLINAME = "uzpy.__main__:main"
+uzpy = "uzpy.main:main"
 
 #------------------------------------------------------------------------------
 # BUILD SYSTEM CONFIGURATION
@@ -413,8 +432,8 @@ unfixable = [
     'F401', # Don't automatically remove unused imports - may be needed later
 
 ]
-# Configure extend-exclude to ignore specific directories
-extend-exclude = [".git", ".venv", "venv", "dist", "build"]
+# Configure exclude to ignore specific directories  
+exclude = [".git", ".venv", "venv", "dist", "build"]
 
 # isort configuration within Ruff
 [tool.ruff.lint.isort]
