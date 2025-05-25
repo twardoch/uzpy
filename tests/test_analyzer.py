@@ -230,8 +230,8 @@ def test_analyzer_with_nonexistent_files(sample_project, sample_constructs):
     assert len(references) == 0
 
 
-def test_analyzer_confidence_scoring(sample_project, sample_constructs):
-    """Test that references include confidence scores."""
+def test_analyzer_reference_attributes(sample_project, sample_constructs):
+    """Test that references include required attributes."""
     analyzer = HybridAnalyzer(sample_project)
     
     helper_construct = sample_constructs[0]  # helper_function
@@ -241,23 +241,11 @@ def test_analyzer_confidence_scoring(sample_project, sample_constructs):
     
     if references:  # Only test if we found references
         for ref in references:
-            assert hasattr(ref, 'confidence')
-            assert 0.0 <= ref.confidence <= 1.0
-
-
-def test_analyzer_reference_types(sample_project, sample_constructs):
-    """Test that references include type information."""
-    analyzer = HybridAnalyzer(sample_project)
-    
-    helper_construct = sample_constructs[0]  # helper_function
-    ref_files = [sample_project / "main.py"]
-    
-    references = analyzer.find_usages(helper_construct, ref_files)
-    
-    if references:  # Only test if we found references
-        for ref in references:
-            assert hasattr(ref, 'reference_type')
-            assert ref.reference_type in ['call', 'import', 'attribute', 'inheritance', 'unknown']
+            assert hasattr(ref, 'file_path')
+            assert hasattr(ref, 'line_number')
+            assert hasattr(ref, 'context')
+            assert isinstance(ref.line_number, int)
+            assert ref.line_number > 0
 
 
 def test_analyzer_error_handling():

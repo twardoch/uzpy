@@ -90,15 +90,11 @@ def sample_constructs_and_references(sample_python_file_with_docstrings):
             file_path=Path("src/main.py"),
             line_number=10,
             context="function_with_docstring()",
-            confidence=0.95,
-            reference_type="call",
         ),
         Reference(
             file_path=Path("tests/test_module.py"),
             line_number=5,
             context="from module import function_with_docstring",
-            confidence=0.98,
-            reference_type="import",
         ),
     ]
 
@@ -109,8 +105,6 @@ def sample_constructs_and_references(sample_python_file_with_docstrings):
                 file_path=Path("new/module.py"),
                 line_number=15,
                 context="function_with_usage_info()",
-                confidence=0.90,
-                reference_type="call",
             )
         ],
         constructs[2]: [
@@ -118,8 +112,6 @@ def sample_constructs_and_references(sample_python_file_with_docstrings):
                 file_path=Path("src/utils.py"),
                 line_number=20,
                 context="function_without_docstring()",
-                confidence=0.85,
-                reference_type="call",
             )
         ],
     }
@@ -191,8 +183,6 @@ def test_update_docstring_content_with_existing_usage():
             file_path=Path("/fake/project/new/module.py"),
             line_number=10,
             context="call",
-            confidence=0.9,
-            reference_type="call",
         )
     ]
 
@@ -215,8 +205,6 @@ def test_update_docstring_content_without_existing_usage():
             file_path=Path("/fake/project/src/module.py"),
             line_number=10,
             context="call",
-            confidence=0.9,
-            reference_type="call",
         )
     ]
 
@@ -236,15 +224,11 @@ def test_create_new_docstring():
             file_path=Path("/fake/project/src/main.py"),
             line_number=5,
             context="import",
-            confidence=0.95,
-            reference_type="import",
         ),
         Reference(
             file_path=Path("/fake/project/tests/test.py"),
             line_number=10,
             context="call",
-            confidence=0.9,
-            reference_type="call",
         ),
     ]
 
@@ -319,8 +303,6 @@ def test_indentation_preservation():
             file_path=Path("/fake/project/src/module.py"),
             line_number=10,
             context="call",
-            confidence=0.9,
-            reference_type="call",
         )
     ]
 
@@ -341,15 +323,11 @@ def test_relative_path_calculation():
             file_path=Path("/fake/project/src/deep/nested/module.py"),
             line_number=10,
             context="call",
-            confidence=0.9,
-            reference_type="call",
         ),
         Reference(
             file_path=Path("/fake/project/tests/test.py"),
             line_number=5,
             context="import",
-            confidence=0.95,
-            reference_type="import",
         ),
     ]
 
