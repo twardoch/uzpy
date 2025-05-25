@@ -186,7 +186,11 @@ class DocstringModifier(cst.CSTTransformer):
         else:
             updated_content = usage_section
 
-        return f"{quote_char}{updated_content}{quote_char}"
+        # Add proper indentation to closing quotes for triple-quoted strings
+        if quote_char == '"""' and base_indent:
+            return f'{quote_char}{updated_content}{base_indent}{quote_char}'
+        else:
+            return f"{quote_char}{updated_content}{quote_char}"
 
     def _remove_existing_usage_info(self, content: str) -> str:
         """Remove existing usage information from docstring."""
@@ -264,8 +268,10 @@ class DocstringModifier(cst.CSTTransformer):
 
     def _create_new_docstring(self, references: List[Reference]) -> str:
         """Create a new docstring with usage information."""
-        usage_section = self._generate_usage_section(references)
-        return f'"""{usage_section}"""'
+        # For new docstrings, use standard indentation (4 spaces)
+        base_indent = "    "
+        usage_section = self._generate_usage_section_with_indent(references, base_indent)
+        return f'"""{usage_section}{base_indent}"""'
 
     def _add_docstring_to_node(self, node, docstring: str):
         """Add a docstring to a node that doesn't have one."""
