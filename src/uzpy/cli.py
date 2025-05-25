@@ -149,31 +149,28 @@ class UzpyCLI:
         console.print("[blue]Finding references...[/blue]")
         usage_results = {}
         total_constructs = len(all_constructs)
-        
+
         # Get all reference files for analysis
         file_discovery = FileDiscovery()
         ref_files = list(file_discovery.find_python_files(ref_path))
-        
+
         for i, construct in enumerate(all_constructs, 1):
             if verbose:
                 console.print(f"[dim]Analyzing {construct.name} ({i}/{total_constructs})[/dim]")
-            
+
             try:
                 # Find where this construct is used
                 usage_files = analyzer.find_usages(construct, ref_files)
-                
+
                 # Convert file paths to Reference objects for consistency
-                references = [
-                    Reference(file_path=file_path, line_number=1)  
-                    for file_path in usage_files
-                ]
+                references = [Reference(file_path=file_path, line_number=1) for file_path in usage_files]
                 usage_results[construct] = references
-                
+
                 if verbose and references:
                     console.print(f"[green]  Found {len(references)} references in {len(usage_files)} files[/green]")
                 elif verbose:
                     console.print(f"[yellow]  No references found[/yellow]")
-                    
+
             except Exception as e:
                 console.print(f"[red]Error analyzing {construct.name}: {e}[/red]")
                 if verbose:
@@ -187,23 +184,23 @@ class UzpyCLI:
             # Apply docstring modifications
             console.print("[blue]Updating docstrings...[/blue]")
             try:
-                modifier = LibCSTModifier(edit_path.parent if edit_path.is_file() else edit_path)
+                modifier = LibCSTModifier(ref_path.parent if ref_path.is_file() else ref_path)
                 modification_results = modifier.modify_files(usage_results)
-                
+
                 # Show modification summary
                 successful_modifications = sum(1 for success in modification_results.values() if success)
                 total_files = len(modification_results)
-                
+
                 if successful_modifications > 0:
                     console.print(f"[green]Successfully updated {successful_modifications}/{total_files} files[/green]")
                 else:
                     console.print("[yellow]No files needed modification[/yellow]")
-                    
+
                 if verbose:
                     for file_path, success in modification_results.items():
                         status = "[green]✓[/green]" if success else "[red]✗[/red]"
                         console.print(f"  {status} {file_path}")
-                        
+
             except Exception as e:
                 console.print(f"[red]Failed to apply modifications: {e}[/red]")
                 if verbose:
@@ -284,11 +281,12 @@ class UzpyCLI:
         total_constructs = len(usage_results)
         constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
         total_references = sum(len(refs) for refs in usage_results.values())
-        
+
         # Count by construct type
         from collections import defaultdict
+
         type_stats = defaultdict(lambda: {"total": 0, "with_refs": 0, "ref_count": 0})
-        
+
         for construct, references in usage_results.items():
             construct_type = construct.type.value
             type_stats[construct_type]["total"] += 1
@@ -307,50 +305,39 @@ class UzpyCLI:
             if construct_type in type_stats:
                 stats = type_stats[construct_type]
                 table.add_row(
-                    construct_type.title(),
-                    str(stats["total"]),
-                    str(stats["with_refs"]),
-                    str(stats["ref_count"])
+                    construct_type.title(), str(stats["total"]), str(stats["with_refs"]), str(stats["ref_count"])
                 )
 
         table.add_row(
             "[bold]Total[/bold]",
             f"[bold]{total_constructs}[/bold]",
             f"[bold]{constructs_with_refs}[/bold]",
-            f"[bold]{total_references}[/bold]"
+            f"[bold]{total_references}[/bold]",
         )
 
         console.print(table)
-        
+
         # Show detailed results for constructs with many references
-        high_usage_constructs = [
-            (construct, refs) for construct, refs in usage_results.items() 
-            if len(refs) >= 3
-        ]
-        
+        high_usage_constructs = [(construct, refs) for construct, refs in usage_results.items() if len(refs) >= 3]
+
         if high_usage_constructs:
             console.print()
             console.print("[bold blue]Most Referenced Constructs:[/bold blue]")
-            
+
             detail_table = Table(show_header=True, header_style="bold cyan")
             detail_table.add_column("Construct", style="green")
             detail_table.add_column("Type", style="blue")
             detail_table.add_column("References", style="yellow", justify="right")
             detail_table.add_column("Files", style="magenta", justify="right")
-            
+
             # Sort by reference count, show top 10
             high_usage_constructs.sort(key=lambda x: len(x[1]), reverse=True)
             for construct, refs in high_usage_constructs[:10]:
                 ref_files = {ref.file_path for ref in refs}
-                detail_table.add_row(
-                    construct.name,
-                    construct.type.value,
-                    str(len(refs)),
-                    str(len(ref_files))
-                )
-            
+                detail_table.add_row(construct.name, construct.type.value, str(len(refs)), str(len(ref_files)))
+
             console.print(detail_table)
-        
+
         console.print()
 
 

@@ -106,14 +106,14 @@ class Construct:
 class Reference:
     """
     Represents a reference to a construct found in the codebase.
-    
+
     Attributes:
         file_path: Path to the file containing the reference
         line_number: Line number of the reference (1-based)
         column_number: Column number of the reference (0-based)
         context: Surrounding code context for the reference
     """
-    
+
     file_path: Path
     line_number: int
     column_number: int = 0
