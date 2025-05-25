@@ -1,0 +1,60 @@
+---
+description: Specifications for video frame fingerprinting and perceptual hashing system used for intelligent video synchronization
+globs: **/fingerprint*.py,**/hash*.py,**/frame*.py,**/align*.py
+alwaysApply: false
+---
+
+
+# frame-fingerprinting-algorithm
+
+## Core Components (Importance: 95)
+
+The frame fingerprinting system combines multiple perceptual hashing algorithms to generate robust frame signatures:
+
+### Multi-Algorithm Hash Generation
+- pHash: Discrete Cosine Transform analysis capturing frequency patterns
+- AverageHash: Color-based frame signature using average pixel values
+- ColorMomentHash: Statistical analysis of color distribution patterns
+- MarrHildrethHash: Edge and shape detection for structural features
+
+### Fingerprint Composition
+- Combined hash dictionary integrating results from all algorithms
+- Weighted similarity scoring based on hash reliability for video content
+- Color histogram correlation for additional frame matching precision
+
+## Frame Matching Logic (Importance: 90)
+
+### Preprocessing Pipeline
+1. Frame standardization to 64x64 pixels
+2. Grayscale conversion for structural analysis
+3. Parallel hash computation across multiple cores
+
+### Similarity Calculation
+- Normalized Hamming distance between hash components
+- Weighted average combining all hash comparisons
+- Histogram correlation coefficient integration
+
+## Integration Points (Importance: 85)
+
+### Temporal Analysis Support
+- Frame fingerprint generation for DTW alignment
+- Sequential frame processing optimized for video streams
+- Cross-frame similarity matrix construction
+
+### Spatial Detection Interface
+- Frame signature comparison for template matching
+- Support for border detection and smooth blending modes
+
+Relevant File Paths:
+```
+src/vidkompy/fingerprint/
+├── hash_generators/
+│   ├── phash.py
+│   ├── average_hash.py
+│   ├── color_moment.py
+│   └── marr_hildreth.py
+├── fingerprinter.py
+└── matcher.py
+```
+
+$END$

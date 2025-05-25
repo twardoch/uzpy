@@ -1,0 +1,46 @@
+---
+description: Video temporal synchronization using dynamic time warping and frame fingerprinting
+globs: **/temporal/*.py,**/align/*.py,**/dtw/*.py,**/fingerprint/*.py
+alwaysApply: false
+---
+
+
+# temporal-alignment-system
+
+## Frame Fingerprinting Engine (Importance: 95)
+Custom multi-algorithm perceptual hashing system combining:
+- pHash (frequency domain analysis)
+- AverageHash (color patterns) 
+- ColorMomentHash (distribution statistics)
+- MarrHildrethHash (structural features)
+
+Fingerprints are combined into weighted composite signatures for optimal frame matching.
+
+## Dynamic Time Warping Core (Importance: 98)
+Specialized DTW implementation for video synchronization:
+- Monotonic path constraints preventing backward time jumps
+- Sakoe-Chiba band optimization window
+- Frame index interpolation for smooth transitions
+- Adaptive keyframe density based on FPS differences
+
+## Frame Mapping Controller (Importance: 92)
+Manages optimal frame alignment between videos:
+- Cost matrix construction from frame fingerprint distances
+- Path backtracking for perfect match sequences 
+- Linear interpolation for continuous frame mapping
+- Automatic handling of speed variations and dropped frames
+
+## Video Stream Synchronizer (Importance: 90)
+Coordinates temporal alignment:
+- Sequential frame reading with mapped indices
+- Dynamic background video speed adjustment
+- Audio stream synchronization
+- Drift prevention through keyframe adaptation
+
+Relevant File Paths:
+/src/temporal/fingerprint.py
+/src/temporal/dtw.py  
+/src/temporal/mapper.py
+/src/temporal/sync.py
+
+$END$

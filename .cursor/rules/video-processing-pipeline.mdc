@@ -1,0 +1,55 @@
+---
+description: Use for analyzing video processing pipelines with frame sampling, synchronization, and adaptation logic.
+globs: **/*video*.{py,cpp},**/pipeline/**,**/frame/**,**/sync/**
+alwaysApply: false
+---
+
+
+# video-processing-pipeline
+
+## Core Processing Pipeline (Importance: 95)
+- Frame-by-frame processing prioritizing foreground content integrity
+- Intelligent background adaptation and warping to match foreground timing
+- Dynamic handling of resolution, framerate, and duration mismatches
+- Global temporal drift prevention through keyframe tracking
+
+## Frame Analysis Engine (Importance: 90) 
+- Multi-algorithm perceptual hashing system combining:
+  - pHash for frequency domain characteristics
+  - AverageHash for color pattern detection
+  - ColorMomentHash for distribution analysis
+  - MarrHildrethHash for edge/shape detection
+- Composite fingerprint generation for robust frame matching
+
+## Temporal Alignment System (Importance: 92)
+- Video synchronization through Dynamic Time Warping (DTW)
+- Monotonic mapping enforcement prevents timeline inconsistencies
+- Sakoe-Chiba band optimization for frame alignment
+- Linear interpolation between key matches for smooth transitions
+
+## Spatial Alignment Logic (Importance: 85)
+- Template matching with normalized cross-correlation
+- Multi-phase position detection process:
+  1. Grayscale conversion for stability
+  2. Correlation coefficient normalization 
+  3. Optimal match position calculation
+  4. Scale factor determination
+
+## Audio Integration (Importance: 75)
+- Foreground audio track prioritization
+- Automatic synchronization with composed video
+- Fallback to background audio when needed
+- Time-aligned audio stream insertion
+
+Key File Paths:
+```
+src/
+  pipeline/
+    frame_fingerprinter.py
+    temporal_aligner.py
+    spatial_matcher.py
+    audio_sync.py
+    video_composer.py
+```
+
+$END$
