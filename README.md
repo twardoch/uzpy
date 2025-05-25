@@ -6,17 +6,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Production Ready](https://img.shields.io/badge/status-production%20ready-green.svg)]()
 
-uzpy scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. This helps developers understand code dependencies and maintain better documentation.
+`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. This helps developers understand code dependencies and maintain better documentation.
 
 ## ✨ Features
 
 - **🔍 Smart Analysis**: Uses Tree-sitter for fast, error-resilient Python parsing
 - **🎯 Accurate References**: Combines Rope and Jedi for comprehensive usage detection  
 - **📝 Safe Modifications**: Preserves code formatting using LibCST with lossless editing
-- **⚡ High Performance**: Optimized for large codebases with hybrid analysis strategies
-- **🎨 Beautiful Output**: Rich terminal interface with progress indicators and summaries
 - **🛡️ Error Recovery**: Graceful handling of syntax errors and edge cases
-- **🏗️ Production Ready**: Complete implementation with comprehensive error handling
 
 ## 🚀 Installation
 
