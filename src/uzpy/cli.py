@@ -23,6 +23,7 @@ from rich.table import Table
 
 from uzpy.discovery import discover_files
 from uzpy.parser import TreeSitterParser
+from uzpy.analyzer import HybridAnalyzer
 
 console = Console()
 
@@ -45,10 +46,10 @@ class UzpyCLI:
         ref: str | None = None,
         verbose: bool = False,
         dry_run: bool = False,
-        include_methods: bool = True,
-        include_classes: bool = True,
-        include_functions: bool = True,
-        exclude_patterns: str | None = None,
+        methods_include: bool = True,
+        classes_include: bool = True,
+        functions_include: bool = True,
+        xclude_patterns: str | None = None,
     ) -> None:
         """
         Analyze codebase and update docstrings with usage information.
@@ -61,7 +62,7 @@ class UzpyCLI:
             include_methods: Include method definitions in analysis
             include_classes: Include class definitions in analysis
             include_functions: Include function definitions in analysis
-            exclude_patterns: Comma-separated glob patterns to exclude from analysis
+            xclude_patterns: Comma-separated glob patterns to exclude from analysis
         """
         # Configure logging
         logger.remove()  # Remove default handler
@@ -86,7 +87,7 @@ class UzpyCLI:
 
         # Discover files
         try:
-            exclude_list = exclude_patterns.split(",") if exclude_patterns else None
+            exclude_list = xclude_patterns.split(",") if xclude_patterns else None
             edit_files, ref_files = discover_files(edit_path, ref_path, exclude_list)
         except Exception as e:
             console.print(f"[red]Error discovering files: {e}[/red]")
@@ -133,8 +134,49 @@ class UzpyCLI:
         if dry_run:
             logger.info("DRY RUN MODE - no files will be modified")
 
-        # TODO: Continue with reference finding and modification
-        console.print("[yellow]Analyzer implementation in progress...[/yellow]")
+        # Initialize analyzer for reference finding
+        try:
+            analyzer = HybridAnalyzer(ref_path)
+            logger.info("Initialized hybrid analyzer")
+        except Exception as e:
+            console.print(f"[red]Failed to initialize analyzer: {e}[/red]")
+            if verbose:
+                logger.exception("Analyzer initialization failed")
+            return
+
+        # Find references for each construct
+        console.print("[blue]Finding references...[/blue]")
+        usage_results = {}
+        total_constructs = len(all_constructs)
+        
+        for i, construct in enumerate(all_constructs, 1):
+            if verbose:
+                console.print(f"[dim]Analyzing {construct.name} ({i}/{total_constructs})[/dim]")
+            
+            try:
+                # Find where this construct is used
+                references = analyzer.find_references(construct)
+                usage_results[construct] = references
+                
+                if verbose and references:
+                    ref_files = {ref.file_path for ref in references}
+                    console.print(f"[green]  Found {len(references)} references in {len(ref_files)} files[/green]")
+                elif verbose:
+                    console.print(f"[yellow]  No references found[/yellow]")
+                    
+            except Exception as e:
+                console.print(f"[red]Error analyzing {construct.name}: {e}[/red]")
+                if verbose:
+                    logger.exception(f"Failed to analyze construct {construct.name}")
+                usage_results[construct] = []
+
+        # Show analysis summary
+        self._show_analysis_summary(usage_results)
+
+        if not dry_run:
+            console.print("[yellow]Docstring modification not yet implemented[/yellow]")
+        else:
+            console.print("[green]Analysis complete - dry run mode[/green]")
 
     def _show_config(self, edit_path: Path, ref_path: Path, dry_run: bool, verbose: bool) -> None:
         """Display current configuration in a nice table."""
@@ -197,6 +239,85 @@ class UzpyCLI:
         )
 
         console.print(table)
+        console.print()
+
+    def _show_analysis_summary(self, usage_results: dict) -> None:
+        """Display summary of reference analysis results."""
+        if not usage_results:
+            console.print("[yellow]No analysis results to display[/yellow]")
+            return
+
+        # Create summary statistics
+        total_constructs = len(usage_results)
+        constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
+        total_references = sum(len(refs) for refs in usage_results.values())
+        
+        # Count by construct type
+        from collections import defaultdict
+        type_stats = defaultdict(lambda: {"total": 0, "with_refs": 0, "ref_count": 0})
+        
+        for construct, references in usage_results.items():
+            construct_type = construct.type.value
+            type_stats[construct_type]["total"] += 1
+            if references:
+                type_stats[construct_type]["with_refs"] += 1
+                type_stats[construct_type]["ref_count"] += len(references)
+
+        # Display summary table
+        table = Table(title="Reference Analysis Summary", show_header=True, header_style="bold magenta")
+        table.add_column("Type", style="cyan", no_wrap=True)
+        table.add_column("Total", style="blue", justify="right")
+        table.add_column("With References", style="green", justify="right")
+        table.add_column("Total References", style="yellow", justify="right")
+
+        for construct_type in ["module", "class", "function", "method"]:
+            if construct_type in type_stats:
+                stats = type_stats[construct_type]
+                table.add_row(
+                    construct_type.title(),
+                    str(stats["total"]),
+                    str(stats["with_refs"]),
+                    str(stats["ref_count"])
+                )
+
+        table.add_row(
+            "[bold]Total[/bold]",
+            f"[bold]{total_constructs}[/bold]",
+            f"[bold]{constructs_with_refs}[/bold]",
+            f"[bold]{total_references}[/bold]"
+        )
+
+        console.print(table)
+        
+        # Show detailed results for constructs with many references
+        high_usage_constructs = [
+            (construct, refs) for construct, refs in usage_results.items() 
+            if len(refs) >= 3
+        ]
+        
+        if high_usage_constructs:
+            console.print()
+            console.print("[bold blue]Most Referenced Constructs:[/bold blue]")
+            
+            detail_table = Table(show_header=True, header_style="bold cyan")
+            detail_table.add_column("Construct", style="green")
+            detail_table.add_column("Type", style="blue")
+            detail_table.add_column("References", style="yellow", justify="right")
+            detail_table.add_column("Files", style="magenta", justify="right")
+            
+            # Sort by reference count, show top 10
+            high_usage_constructs.sort(key=lambda x: len(x[1]), reverse=True)
+            for construct, refs in high_usage_constructs[:10]:
+                ref_files = {ref.file_path for ref in refs}
+                detail_table.add_row(
+                    construct.name,
+                    construct.type.value,
+                    str(len(refs)),
+                    str(len(ref_files))
+                )
+            
+            console.print(detail_table)
+        
         console.print()
 
 

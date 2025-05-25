@@ -85,6 +85,40 @@ class Construct:
 
         return "\n".join(lines).strip()
 
+    def __hash__(self) -> int:
+        """Make Construct hashable based on its unique identifying attributes."""
+        return hash((self.name, self.type, str(self.file_path), self.line_number, self.full_name))
+
+    def __eq__(self, other) -> bool:
+        """Compare constructs based on their unique identifying attributes."""
+        if not isinstance(other, Construct):
+            return False
+        return (
+            self.name == other.name
+            and self.type == other.type
+            and self.file_path == other.file_path
+            and self.line_number == other.line_number
+            and self.full_name == other.full_name
+        )
+
+
+@dataclass
+class Reference:
+    """
+    Represents a reference to a construct found in the codebase.
+    
+    Attributes:
+        file_path: Path to the file containing the reference
+        line_number: Line number of the reference (1-based)
+        column_number: Column number of the reference (0-based)
+        context: Surrounding code context for the reference
+    """
+    
+    file_path: Path
+    line_number: int
+    column_number: int = 0
+    context: str = ""
+
 
 class TreeSitterParser:
     """
