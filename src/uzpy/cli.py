@@ -22,7 +22,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from uzpy.discovery import discover_files
-from uzpy.parser import TreeSitterParser
+from uzpy.parser import TreeSitterParser, Reference
 from uzpy.analyzer import HybridAnalyzer
 
 console = Console()
@@ -149,18 +149,26 @@ class UzpyCLI:
         usage_results = {}
         total_constructs = len(all_constructs)
         
+        # Get all reference files for analysis
+        ref_files = list(discover_files(ref_path))
+        
         for i, construct in enumerate(all_constructs, 1):
             if verbose:
                 console.print(f"[dim]Analyzing {construct.name} ({i}/{total_constructs})[/dim]")
             
             try:
                 # Find where this construct is used
-                references = analyzer.find_references(construct)
+                usage_files = analyzer.find_usages(construct, ref_files)
+                
+                # Convert file paths to Reference objects for consistency
+                references = [
+                    Reference(file_path=file_path, line_number=1)  
+                    for file_path in usage_files
+                ]
                 usage_results[construct] = references
                 
                 if verbose and references:
-                    ref_files = {ref.file_path for ref in references}
-                    console.print(f"[green]  Found {len(references)} references in {len(ref_files)} files[/green]")
+                    console.print(f"[green]  Found {len(references)} references in {len(usage_files)} files[/green]")
                 elif verbose:
                     console.print(f"[yellow]  No references found[/yellow]")
                     
