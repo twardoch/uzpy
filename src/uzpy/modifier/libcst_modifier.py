@@ -207,21 +207,26 @@ class DocstringModifier(cst.CSTTransformer):
         if not references:
             return ""
 
-        # Group references by file
-        file_groups: Dict[Path, List[Reference]] = {}
+        # Convert to relative paths and deduplicate
+        relative_paths = set()
         for ref in references:
-            if ref.file_path not in file_groups:
-                file_groups[ref.file_path] = []
-            file_groups[ref.file_path].append(ref)
-
-        # Generate relative paths
-        usage_lines = []
-        for file_path in sorted(file_groups.keys()):
             try:
-                rel_path = file_path.relative_to(self.project_root)
+                # Resolve both paths to ensure proper comparison
+                resolved_file = ref.file_path.resolve()
+                resolved_root = self.project_root.resolve()
+                rel_path = resolved_file.relative_to(resolved_root)
             except ValueError:
-                rel_path = file_path
+                # If can't make relative, try with the original paths
+                try:
+                    rel_path = ref.file_path.relative_to(self.project_root)
+                except ValueError:
+                    # If still can't make relative, use the file name only
+                    rel_path = ref.file_path
+            relative_paths.add(rel_path)
 
+        # Generate usage lines
+        usage_lines = []
+        for rel_path in sorted(relative_paths):
             usage_lines.append(f"- {rel_path}")
 
         # Add one extra newline at the end of the "Used in" list
@@ -232,21 +237,26 @@ class DocstringModifier(cst.CSTTransformer):
         if not references:
             return ""
 
-        # Group references by file
-        file_groups: Dict[Path, List[Reference]] = {}
+        # Group references by file and convert to relative paths immediately
+        relative_paths = set()
         for ref in references:
-            if ref.file_path not in file_groups:
-                file_groups[ref.file_path] = []
-            file_groups[ref.file_path].append(ref)
-
-        # Generate relative paths with indentation
-        usage_lines = []
-        for file_path in sorted(file_groups.keys()):
             try:
-                rel_path = file_path.relative_to(self.project_root)
+                # Resolve both paths to ensure proper comparison
+                resolved_file = ref.file_path.resolve()
+                resolved_root = self.project_root.resolve()
+                rel_path = resolved_file.relative_to(resolved_root)
             except ValueError:
-                rel_path = file_path
+                # If can't make relative, try with the original paths
+                try:
+                    rel_path = ref.file_path.relative_to(self.project_root)
+                except ValueError:
+                    # If still can't make relative, use the file name only
+                    rel_path = ref.file_path
+            relative_paths.add(rel_path)
 
+        # Generate usage lines with indentation
+        usage_lines = []
+        for rel_path in sorted(relative_paths):
             usage_lines.append(f"{base_indent}- {rel_path}")
 
         # Format with proper indentation and extra newline at the end
