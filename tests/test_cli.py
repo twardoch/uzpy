@@ -4,10 +4,6 @@
 Tests for the CLI module.
 """
 
-from pathlib import Path
-
-import pytest
-
 from uzpy.cli import UzpyCLI
 
 
