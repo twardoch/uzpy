@@ -218,105 +218,85 @@ class DocstringModifier(cst.CSTTransformer):
                     base_indent = line[: len(line) - len(line.lstrip())]
                     break
 
-        # Remove existing usage information if present
-        content = self._remove_existing_usage_info(content)
+        # Extract existing usage paths and clean content
+        cleaned_content, existing_paths, original_indent = self._extract_existing_usage_paths(content)
 
-        # Generate usage section with proper indentation
-        usage_section = self._generate_usage_section_with_indent(references, base_indent)
+        # Use original indent if found, otherwise use detected base_indent
+        if original_indent:
+            base_indent = original_indent
+
+        # Convert new references to relative paths
+        new_paths = set()
+        for ref in references:
+            try:
+                # Resolve both paths to ensure proper comparison
+                resolved_file = ref.file_path.resolve()
+                resolved_root = self.project_root.resolve()
+                rel_path = resolved_file.relative_to(resolved_root)
+            except ValueError:
+                # If can't make relative, try with the original paths
+                try:
+                    rel_path = ref.file_path.relative_to(self.project_root)
+                except ValueError:
+                    # If still can't make relative, use the file name only
+                    rel_path = ref.file_path
+            new_paths.add(str(rel_path))
+
+        # Merge existing and new paths
+        all_paths = existing_paths | new_paths
+
+        # Generate usage section with merged paths
+        if all_paths:
+            usage_lines = []
+            for path in sorted(all_paths):
+                usage_lines.append(f"{base_indent}- {path}")
+            usage_section = f"{base_indent}Used in:\n" + "\n".join(usage_lines) + "\n"
+        else:
+            usage_section = ""
 
         # Combine content and usage
-        updated_content = f"{content.rstrip()}\n\n{usage_section}" if content.strip() else usage_section
+        updated_content = f"{cleaned_content.rstrip()}\n\n{usage_section}" if cleaned_content.strip() else usage_section
 
         # Add proper indentation to closing quotes for triple-quoted strings
         if quote_char == '"""' and base_indent:
             return f"{quote_char}{updated_content}{base_indent}{quote_char}"
         return f"{quote_char}{updated_content}{quote_char}"
 
-    def _remove_existing_usage_info(self, content: str) -> str:
-        """Remove existing usage information from docstring.
+    def _extract_existing_usage_paths(self, content: str) -> tuple[str, set[str], str]:
+        """Extract existing "Used in:" paths from docstring and return cleaned content.
 
-        Used in:
-        - modifier/libcst_modifier.py
+        Args:
+            content: The docstring content
+
+        Returns:
+            Tuple of (cleaned_content, existing_paths_set, original_indent)
         """
-        # Look for existing usage sections and remove them
-        patterns = [
-            r"\n\s*Used in:.*?(?=\n\s*\w|\n\s*$|\Z)",
-            r"\n\s*Usage:.*?(?=\n\s*\w|\n\s*$|\Z)",
-            r"\n\s*References:.*?(?=\n\s*\w|\n\s*$|\Z)",
-        ]
+        # Pattern to match "Used in:" section with paths
+        pattern = r"(\n\s*)(Used in:(?:\s*\n(?:\s*-\s*[^\n]+\n?)*)\s*)"
 
-        for pattern in patterns:
-            content = re.sub(pattern, "", content, flags=re.DOTALL | re.MULTILINE)
+        match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
+        if not match:
+            return content, set(), ""
 
-        return content
+        # Extract indentation from the "Used in:" line
+        indent_match = re.search(r"\n(\s*)Used in:", content)
+        original_indent = indent_match.group(1) if indent_match else ""
 
-    def _generate_usage_section(self, references: list[Reference]) -> str:
-        """Generate the usage section text.
+        # Extract existing paths
+        existing_paths = set()
+        usage_section = match.group(2)
 
-        Used in:
-        - modifier/libcst_modifier.py
-        """
-        if not references:
-            return ""
+        # Find all paths in the usage section (lines starting with -)
+        path_pattern = r"\s*-\s*(.+?)(?:\n|$)"
+        for path_match in re.finditer(path_pattern, usage_section):
+            path = path_match.group(1).strip()
+            if path:
+                existing_paths.add(path)
 
-        # Convert to relative paths and deduplicate
-        relative_paths = set()
-        for ref in references:
-            try:
-                # Resolve both paths to ensure proper comparison
-                resolved_file = ref.file_path.resolve()
-                resolved_root = self.project_root.resolve()
-                rel_path = resolved_file.relative_to(resolved_root)
-            except ValueError:
-                # If can't make relative, try with the original paths
-                try:
-                    rel_path = ref.file_path.relative_to(self.project_root)
-                except ValueError:
-                    # If still can't make relative, use the file name only
-                    rel_path = ref.file_path
-            relative_paths.add(rel_path)
+        # Remove the entire "Used in:" section from content
+        cleaned_content = re.sub(pattern, "", content, flags=re.MULTILINE | re.DOTALL)
 
-        # Generate usage lines
-        usage_lines = []
-        for rel_path in sorted(relative_paths):
-            usage_lines.append(f"- {rel_path}")
-
-        # Add one extra newline at the end of the "Used in" list
-        return "Used in:\n" + "\n".join(usage_lines) + "\n"
-
-    def _generate_usage_section_with_indent(self, references: list[Reference], base_indent: str) -> str:
-        """Generate the usage section text with proper indentation.
-
-        Used in:
-        - modifier/libcst_modifier.py
-        """
-        if not references:
-            return ""
-
-        # Group references by file and convert to relative paths immediately
-        relative_paths = set()
-        for ref in references:
-            try:
-                # Resolve both paths to ensure proper comparison
-                resolved_file = ref.file_path.resolve()
-                resolved_root = self.project_root.resolve()
-                rel_path = resolved_file.relative_to(resolved_root)
-            except ValueError:
-                # If can't make relative, try with the original paths
-                try:
-                    rel_path = ref.file_path.relative_to(self.project_root)
-                except ValueError:
-                    # If still can't make relative, use the file name only
-                    rel_path = ref.file_path
-            relative_paths.add(rel_path)
-
-        # Generate usage lines with indentation
-        usage_lines = []
-        for rel_path in sorted(relative_paths):
-            usage_lines.append(f"{base_indent}- {rel_path}")
-
-        # Format with proper indentation and extra newline at the end
-        return f"{base_indent}Used in:\n" + "\n".join(usage_lines) + "\n"
+        return cleaned_content, existing_paths, original_indent
 
     def _create_new_docstring(self, references: list[Reference]) -> str:
         """Create a new docstring with usage information.
@@ -326,7 +306,33 @@ class DocstringModifier(cst.CSTTransformer):
         """
         # For new docstrings, use standard indentation (4 spaces)
         base_indent = "    "
-        usage_section = self._generate_usage_section_with_indent(references, base_indent)
+
+        # Convert references to relative paths
+        relative_paths = set()
+        for ref in references:
+            try:
+                # Resolve both paths to ensure proper comparison
+                resolved_file = ref.file_path.resolve()
+                resolved_root = self.project_root.resolve()
+                rel_path = resolved_file.relative_to(resolved_root)
+            except ValueError:
+                # If can't make relative, try with the original paths
+                try:
+                    rel_path = ref.file_path.relative_to(self.project_root)
+                except ValueError:
+                    # If still can't make relative, use the file name only
+                    rel_path = ref.file_path
+            relative_paths.add(str(rel_path))
+
+        # Generate usage section
+        if relative_paths:
+            usage_lines = []
+            for path in sorted(relative_paths):
+                usage_lines.append(f"{base_indent}- {path}")
+            usage_section = f"{base_indent}Used in:\n" + "\n".join(usage_lines) + "\n"
+        else:
+            usage_section = ""
+
         return f'"""{usage_section}{base_indent}"""'
 
     def _add_docstring_to_node(self, node, docstring: str):
