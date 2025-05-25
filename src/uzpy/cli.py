@@ -21,9 +21,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from uzpy.discovery import discover_files
+from uzpy.discovery import discover_files, FileDiscovery
 from uzpy.parser import TreeSitterParser, Reference
 from uzpy.analyzer import HybridAnalyzer
+from uzpy.modifier import LibCSTModifier
 
 console = Console()
 
@@ -150,7 +151,8 @@ class UzpyCLI:
         total_constructs = len(all_constructs)
         
         # Get all reference files for analysis
-        ref_files = list(discover_files(ref_path))
+        file_discovery = FileDiscovery()
+        ref_files = list(file_discovery.find_python_files(ref_path))
         
         for i, construct in enumerate(all_constructs, 1):
             if verbose:
@@ -182,7 +184,30 @@ class UzpyCLI:
         self._show_analysis_summary(usage_results)
 
         if not dry_run:
-            console.print("[yellow]Docstring modification not yet implemented[/yellow]")
+            # Apply docstring modifications
+            console.print("[blue]Updating docstrings...[/blue]")
+            try:
+                modifier = LibCSTModifier(edit_path.parent if edit_path.is_file() else edit_path)
+                modification_results = modifier.modify_files(usage_results)
+                
+                # Show modification summary
+                successful_modifications = sum(1 for success in modification_results.values() if success)
+                total_files = len(modification_results)
+                
+                if successful_modifications > 0:
+                    console.print(f"[green]Successfully updated {successful_modifications}/{total_files} files[/green]")
+                else:
+                    console.print("[yellow]No files needed modification[/yellow]")
+                    
+                if verbose:
+                    for file_path, success in modification_results.items():
+                        status = "[green]✓[/green]" if success else "[red]✗[/red]"
+                        console.print(f"  {status} {file_path}")
+                        
+            except Exception as e:
+                console.print(f"[red]Failed to apply modifications: {e}[/red]")
+                if verbose:
+                    logger.exception("Modification failed")
         else:
             console.print("[green]Analysis complete - dry run mode[/green]")
 
