@@ -278,9 +278,14 @@ class DocstringModifier(cst.CSTTransformer):
         if not match:
             return content, set(), ""
 
-        # Extract indentation from the "Used in:" line
-        indent_match = re.search(r"\n(\s*)Used in:", content)
-        original_indent = indent_match.group(1) if indent_match else ""
+        # Extract indentation from the "Used in:" line (look for immediate indentation before "Used in:")
+        # Match a newline, then optionally another newline, then capture spaces/tabs before "Used in:"
+        indent_match = re.search(r"\n\n?(\s*)Used in:", content)
+        if indent_match:
+            # Extract just the spaces/tabs, not including newlines
+            original_indent = indent_match.group(1)
+        else:
+            original_indent = ""
 
         # Extract existing paths
         existing_paths = set()
