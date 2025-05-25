@@ -1,49 +1,48 @@
 ---
-description: Technical documentation for video frame template matching and spatial alignment algorithms
-globs: src/vidkompy/spatial/*.py,src/vidkompy/alignment/*.py,src/vidkompy/matcher/*.py
+description: Specification for determining optimal x/y positioning between foreground and background videos through template matching and correlation scoring
+globs: **/spatial_alignment.py,**/template_matching.py,**/alignment/*.py,**/video/position.py
 alwaysApply: false
 ---
 
 
 # spatial-alignment-system
 
-The spatial alignment system determines optimal positioning of the foreground video within the background video frame using a multi-stage template matching approach.
+The spatial alignment system determines the optimal position to overlay foreground video onto background video through template matching and correlation analysis.
 
-## Core Components
+Core Components:
 
-### Template Matcher (Importance: 95)
-- Implements normalized cross-correlation scoring between frame pairs
-- Uses grayscale conversion for robust pattern matching
-- Calculates correlation scores across all possible x/y offset positions
-- Returns optimal position with highest correlation coefficient
+## Template Matching Engine
+Importance Score: 95
+- Extracts representative frames from temporal midpoint of both videos
+- Converts frames to grayscale for robust matching
+- Uses normalized cross-correlation coefficient scoring
+- Slides foreground frame across background to find optimal position
+- Returns x,y coordinates and confidence score
 
-### Frame Position Detector (Importance: 90)
-1. Frame Selection Logic
-- Extracts representative frames from video temporal midpoint
-- Avoids edge frames that may contain titles/credits
-- Validates frame content meets minimum quality threshold
+## Position Detection Pipeline
+Importance Score: 90
+- Frame selection from video midpoint to avoid titles/credits
+- Grayscale conversion for alignment robustness
+- Template matching with TM_CCOEFF_NORMED method
+- Position determination from highest correlation score
+- Automatic scaling if foreground exceeds background size
 
-2. Scale Detection
-- Detects if foreground exceeds background dimensions
-- Calculates required scale factor while preserving aspect ratio
-- Applies scaling transformations as needed
+## Correlation Analysis
+Importance Score: 85
+- Normalized cross-correlation scoring between frames
+- Confidence calculation based on correlation coefficient
+- Threshold validation of match quality
+- Scale factor determination when size mismatch detected
+- Returns position tuple with confidence metric
 
-3. Position Refinement
-- Fine-tunes initial match position using edge detection
-- Validates position against frame boundaries
-- Applies spatial constraints to keep foreground fully visible
+## Border Mode Handler 
+Importance Score: 75
+- Special alignment mode focusing on visible background edges
+- Border thickness parameter for match area
+- Edge-based correlation scoring
+- Position refinement based on border matching
+- Returns adjusted position coordinates
 
-### Match Validation (Importance: 85)
-- Confidence scoring based on correlation coefficient normalization
-- Minimum threshold validation for match acceptance
-- Edge case handling for partial matches and low confidence results
-
-Relevant File Paths:
-```
-src/vidkompy/spatial/
-  ├── matcher.py       # Template matching core
-  ├── detector.py      # Position detection logic  
-  └── validator.py     # Match validation system
-```
+The system prioritizes finding globally optimal positioning while handling resolution mismatches and different aspect ratios between videos. Template matching enables precise alignment even with cropped or partial content overlap.
 
 $END$

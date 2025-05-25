@@ -1,46 +1,53 @@
 ---
-description: Video temporal synchronization using dynamic time warping and frame fingerprinting
-globs: **/temporal/*.py,**/align/*.py,**/dtw/*.py,**/fingerprint/*.py
+description: Handles time-based video synchronization using Dynamic Time Warping (DTW) for frame alignment
+globs: src/vidkompy/alignment/*.py,src/vidkompy/dtw/*.py,src/vidkompy/sync/*.py
 alwaysApply: false
 ---
 
 
 # temporal-alignment-system
 
-## Frame Fingerprinting Engine (Importance: 95)
-Custom multi-algorithm perceptual hashing system combining:
-- pHash (frequency domain analysis)
-- AverageHash (color patterns) 
-- ColorMomentHash (distribution statistics)
-- MarrHildrethHash (structural features)
+A sophisticated video synchronization system using Dynamic Time Warping (DTW) to create perfect frame-to-frame alignment between foreground and background videos.
 
-Fingerprints are combined into weighted composite signatures for optimal frame matching.
+## Core Components
 
-## Dynamic Time Warping Core (Importance: 98)
-Specialized DTW implementation for video synchronization:
-- Monotonic path constraints preventing backward time jumps
-- Sakoe-Chiba band optimization window
-- Frame index interpolation for smooth transitions
-- Adaptive keyframe density based on FPS differences
+### Frame Mapping Engine (Importance: 95)
+- Generates frame correspondence map using DTW algorithm
+- Creates monotonic alignment path preventing temporal drift
+- Interpolates between key matches for continuous mapping
+- Adapts background video timing to match foreground frames
 
-## Frame Mapping Controller (Importance: 92)
-Manages optimal frame alignment between videos:
-- Cost matrix construction from frame fingerprint distances
-- Path backtracking for perfect match sequences 
-- Linear interpolation for continuous frame mapping
-- Automatic handling of speed variations and dropped frames
+### DTW Implementation (Importance: 90)
+- Calculates optimal alignment path through frame similarity matrix
+- Enforces monotonicity constraint to prevent backward jumps
+- Uses Sakoe-Chiba band to limit warping window
+- Generates sparse perfect matches for key frames
 
-## Video Stream Synchronizer (Importance: 90)
-Coordinates temporal alignment:
-- Sequential frame reading with mapped indices
-- Dynamic background video speed adjustment
-- Audio stream synchronization
-- Drift prevention through keyframe adaptation
+### Frame Alignment Rules
+1. Foreground Frame Preservation (Importance: 85)
+- Every foreground frame must be included without modification
+- Background frames stretched/compressed to match foreground timing
+- No frame dropping or duplication allowed in foreground
 
-Relevant File Paths:
-/src/temporal/fingerprint.py
-/src/temporal/dtw.py  
-/src/temporal/mapper.py
-/src/temporal/sync.py
+2. Continuous Mapping Logic (Importance: 80) 
+- Linear interpolation between DTW keyframe matches
+- Dynamic background frame rate adjustment
+- Smooth transition handling between segments
+
+### Temporal Sync Protocol (Importance: 75)
+1. Initial Phase
+- Sample frames from both videos at adaptive intervals
+- Generate perceptual fingerprints for frame comparison
+- Build similarity cost matrix between frame pairs
+
+2. Alignment Phase  
+- Execute DTW to find optimal path through cost matrix
+- Generate complete frame mapping from sparse matches
+- Apply mapping to create synchronized output
+
+Relevant Files:
+- src/vidkompy/alignment/dtw.py
+- src/vidkompy/alignment/frame_mapper.py
+- src/vidkompy/sync/engine.py
 
 $END$

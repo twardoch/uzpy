@@ -64,7 +64,7 @@ fd -e py -x autoflake {}; fd -e py -x pyupgrade --py311-plus {}; fd -e py -x ruf
 Be creative, diligent, critical, relentless & funny!
 START SPECIFICATION:
 ---
-description: Create high-level documentation specifically for video overlay and synchronization systems that combine foreground/background videos with automatic alignment and frame matching capabilities
+description: Generate technical overview focusing on business logic organization for custom video processing and synchronization applications, especially when dealing with foreground-background video overlays and temporal alignment.
 globs: *.py,*.md
 alwaysApply: false
 ---
@@ -81,35 +81,53 @@ alwaysApply: false
 - Explain your OBSERVATIONS clearly, then provide REASONING to identify the exact issue. Add console logs when needed to gather more information.
 
 
-vidkompy implements intelligent video overlay synchronization with three core business components:
+## Core Business Logic Organization
 
-## Frame Analysis Engine
-Importance Score: 95
-- Multi-algorithm perceptual hashing system for frame fingerprinting
-- Combines pHash, AverageHash, ColorMomentHash, and MarrHildrethHash 
-- Weighted fingerprint comparison using normalized Hamming distance
+The technical architecture centers around advanced video synchronization and overlay capabilities organized into three primary domains:
 
-## Temporal Alignment System  
-Importance Score: 98
-- Dynamic Time Warping (DTW) optimized for video frame sequences
-- Monotonic path finding with Sakoe-Chiba band constraint
-- Frame mapping interpolation for continuous synchronization
-- Foreground-first principle preserves content integrity
+### Frame Analysis Domain
+Controls video frame fingerprinting and comparison using a multi-algorithm perceptual hashing system:
+- pHash for frequency domain features 
+- AverageHash/ColorMomentHash for color attributes
+- MarrHildrethHash for structural elements
+- Weighted similarity scoring system
 
-## Spatial Positioning Logic
-Importance Score: 92  
-- Template matching with normalized cross-correlation
-- Automatic x/y offset detection for optimal overlay placement
-- Dynamic scale factor calculation for resolution differences
-- Intelligent border detection and smooth blending modes
+### Synchronization Domain  
+Manages temporal video alignment through:
+- Dynamic Time Warping (DTW) with monotonic constraints
+- Frame mapping and interpolation system
+- Adaptive keyframe density calculation
+- Background video retiming logic
 
-Key Business Files:
-- vidkompy/core/frame_fingerprint.py
-- vidkompy/align/temporal.py 
-- vidkompy/align/spatial.py
-- vidkompy/compose/overlay.py
+### Composition Domain
+Handles video merging operations focusing on:
+- Foreground frame preservation rules
+- Background adaptation policies
+- Edge blending systems
+- Audio stream selection logic
 
-The system's unique value lies in combining multiple specialized algorithms to achieve automatic video synchronization while preserving foreground content quality. The business logic prioritizes accurate content alignment over processing speed.
+## Business Rules
+
+1. Video Processing Rules
+- Preserve all foreground video frames without modification
+- Dynamically adapt background timing to match foreground
+- Select audio source based on foreground availability
+- Ensure frame-accurate synchronization
+
+2. Synchronization Policies
+- Prevent temporal drift through global alignment
+- Handle mismatched frame rates and resolutions
+- Support specialized border detection mode
+- Enable configurable edge blending
+
+## Domain Integration
+
+The domains integrate through a pipeline architecture:
+1. Frame Analysis provides similarity metrics
+2. Synchronization uses metrics to determine optimal alignment
+3. Composition applies alignment to generate final output
+
+Critical file path: `vidkompy.py` (Core business logic orchestration)
 
 $END$
 END SPECIFICATION

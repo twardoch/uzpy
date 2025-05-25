@@ -1,55 +1,53 @@
 ---
-description: Use for analyzing video processing pipelines with frame sampling, synchronization, and adaptation logic.
-globs: **/*video*.{py,cpp},**/pipeline/**,**/frame/**,**/sync/**
+description: Documents video processing pipeline architecture and algorithms for automatic synchronization and compositing
+globs: src/video/**/*,src/processing/**/*,src/pipeline/**/*,src/sync/**/*
 alwaysApply: false
 ---
 
 
 # video-processing-pipeline
 
-## Core Processing Pipeline (Importance: 95)
-- Frame-by-frame processing prioritizing foreground content integrity
-- Intelligent background adaptation and warping to match foreground timing
-- Dynamic handling of resolution, framerate, and duration mismatches
-- Global temporal drift prevention through keyframe tracking
+The video processing pipeline implements sophisticated multi-stage synchronization and compositing with several unique domain components:
 
-## Frame Analysis Engine (Importance: 90) 
-- Multi-algorithm perceptual hashing system combining:
-  - pHash for frequency domain characteristics
-  - AverageHash for color pattern detection
-  - ColorMomentHash for distribution analysis
-  - MarrHildrethHash for edge/shape detection
-- Composite fingerprint generation for robust frame matching
+## Frame Processing Pipeline
+Importance Score: 95
+- Sequential frame sampling with intelligent keyframe selection
+- Multi-algorithm perceptual fingerprinting using pHash, AverageHash, ColorMomentHash
+- Frame matching using weighted hash similarity scoring
+- Temporal synchronization via Dynamic Time Warping with monotonic constraints
 
-## Temporal Alignment System (Importance: 92)
-- Video synchronization through Dynamic Time Warping (DTW)
-- Monotonic mapping enforcement prevents timeline inconsistencies
-- Sakoe-Chiba band optimization for frame alignment
-- Linear interpolation between key matches for smooth transitions
+## Background Adaptation Engine
+Importance Score: 90
+- Adaptive background frame selection based on foreground matching
+- Dynamic timeline stretching/compression to maintain sync
+- Intelligent frame interpolation between key matches
+- Drift prevention through global optimal alignment
 
-## Spatial Alignment Logic (Importance: 85)
+## Temporal Alignment System  
+Importance Score: 85
+- Frame-by-frame mapping with Sakoe-Chiba band constraint
+- Automatic handling of mismatched frame rates
+- Preservation of foreground frame timing and sequencing
+- Linear interpolation for smooth continuous mapping
+
+## Spatial Composition Logic
+Importance Score: 80
 - Template matching with normalized cross-correlation
-- Multi-phase position detection process:
-  1. Grayscale conversion for stability
-  2. Correlation coefficient normalization 
-  3. Optimal match position calculation
-  4. Scale factor determination
+- Dynamic foreground positioning and scaling
+- Edge-based alignment for border matching mode
+- Multi-pass position refinement
 
-## Audio Integration (Importance: 75)
-- Foreground audio track prioritization
-- Automatic synchronization with composed video
-- Fallback to background audio when needed
-- Time-aligned audio stream insertion
+## Audio Integration
+Importance Score: 75
+- Automatic source selection (foreground preferred)
+- Timeline synchronization with video frames
+- Dynamic audio resampling and stretching
+- Fallback handling for missing audio
 
-Key File Paths:
-```
-src/
-  pipeline/
-    frame_fingerprinter.py
-    temporal_aligner.py
-    spatial_matcher.py
-    audio_sync.py
-    video_composer.py
-```
+Key Business Rules:
+- Preserve foreground video quality and timing
+- Prevent temporal drift between sources 
+- Handle mismatched frame rates and resolutions
+- Maintain frame-accurate synchronization
 
 $END$

@@ -1,60 +1,61 @@
 ---
-description: Specifications for video frame fingerprinting and perceptual hashing system used for intelligent video synchronization
-globs: **/fingerprint*.py,**/hash*.py,**/frame*.py,**/align*.py
+description: Specification for multi-algorithm perceptual hashing system used for video frame comparison and matching
+globs: src/vidkompy/fingerprint/*.py,src/vidkompy/hash/*.py,src/vidkompy/compare/*.py
 alwaysApply: false
 ---
 
 
 # frame-fingerprinting-algorithm
 
-## Core Components (Importance: 95)
+Perceptual frame hashing system combining multiple algorithms for robust video frame comparison and matching.
 
-The frame fingerprinting system combines multiple perceptual hashing algorithms to generate robust frame signatures:
+## Core Algorithms
 
-### Multi-Algorithm Hash Generation
-- pHash: Discrete Cosine Transform analysis capturing frequency patterns
-- AverageHash: Color-based frame signature using average pixel values
-- ColorMomentHash: Statistical analysis of color distribution patterns
-- MarrHildrethHash: Edge and shape detection for structural features
+### Multi-Hash Generation System
+Four distinct hash algorithms provide complementary frame analysis:
+- pHash: Frequency domain analysis using DCT transform for lighting-invariant fingerprinting
+- AverageHash: Color distribution mapping for overall frame characteristics
+- ColorMomentHash: Statistical color pattern analysis 
+- MarrHildrethHash: Edge and shape detection focused fingerprinting
 
-### Fingerprint Composition
-- Combined hash dictionary integrating results from all algorithms
-- Weighted similarity scoring based on hash reliability for video content
-- Color histogram correlation for additional frame matching precision
+### Combined Fingerprint Pipeline
+1. Frame standardization to 64x64 grayscale
+2. Parallel hash computation across all algorithms
+3. Color histogram generation
+4. Combined fingerprint dictionary creation with all hash results
 
-## Frame Matching Logic (Importance: 90)
+### Similarity Scoring
+- Weighted Hamming distance between hash values
+- Histogram correlation calculation
+- Normalized composite similarity score based on weighted averages
 
-### Preprocessing Pipeline
-1. Frame standardization to 64x64 pixels
-2. Grayscale conversion for structural analysis
-3. Parallel hash computation across multiple cores
+## Domain Rules
 
-### Similarity Calculation
-- Normalized Hamming distance between hash components
-- Weighted average combining all hash comparisons
-- Histogram correlation coefficient integration
+1. Hash Weighting Priorities
+- pHash given highest weight due to robustness against video compression
+- MarrHildrethHash weighted for structural features
+- ColorMomentHash/AverageHash balanced for color fidelity
 
-## Integration Points (Importance: 85)
+2. Frame Standardization Requirements
+- Maintain aspect ratio during resizing
+- Convert to grayscale before hash computation
+- Normalize brightness levels
 
-### Temporal Analysis Support
-- Frame fingerprint generation for DTW alignment
-- Sequential frame processing optimized for video streams
-- Cross-frame similarity matrix construction
+3. Comparison Thresholds
+- Minimum similarity threshold: 0.85 for frame match
+- Maximum Hamming distance: 0.25 for hash comparison
+- Histogram correlation minimum: 0.70
 
-### Spatial Detection Interface
-- Frame signature comparison for template matching
-- Support for border detection and smooth blending modes
+4. Frame Selection Logic
+- Sample frames at consistent intervals
+- Skip likely transition frames
+- Validate frame content before processing
 
-Relevant File Paths:
-```
-src/vidkompy/fingerprint/
-├── hash_generators/
-│   ├── phash.py
-│   ├── average_hash.py
-│   ├── color_moment.py
-│   └── marr_hildreth.py
-├── fingerprinter.py
-└── matcher.py
-```
+## Business Impact Scores
+
+- Multi-Hash Generation: 95
+- Combined Fingerprint Creation: 90  
+- Similarity Scoring System: 85
+- Frame Selection Logic: 75
 
 $END$
