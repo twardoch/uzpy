@@ -19,6 +19,9 @@ def _extract_existing_usage_paths(content: str) -> tuple[str, set[str], str]:
     # Extract indentation from the "Used in:" line
     indent_match = re.search(r"\n(\s*)Used in:", content)
     original_indent = indent_match.group(1) if indent_match else ""
+    print(f"Debug indent_match: {indent_match}")
+    if indent_match:
+        print(f"Debug groups: {indent_match.groups()}")
     
     # Extract existing paths
     existing_paths = set()
