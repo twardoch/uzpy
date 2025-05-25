@@ -9,6 +9,9 @@ Command-line interface for the uzpy tool.
 
 This module handles argument parsing and provides the main entry point for the CLI.
 Uses Fire for automatic CLI generation and Rich for beautiful terminal output.
+
+Used in:
+- cli.py
 """
 
 import sys
@@ -21,10 +24,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from uzpy.discovery import discover_files, FileDiscovery
-from uzpy.parser import TreeSitterParser, Reference
 from uzpy.analyzer import HybridAnalyzer
+from uzpy.discovery import FileDiscovery, discover_files
 from uzpy.modifier import LibCSTModifier
+from uzpy.parser import Reference, TreeSitterParser
 
 console = Console()
 
@@ -35,10 +38,17 @@ class UzpyCLI:
 
     This tool analyzes Python codebases to find where constructs (functions, classes,
     methods) are used and automatically updates their docstrings with usage information.
+
+    Used in:
+    - cli.py
     """
 
     def __init__(self):
-        """Initialize the CLI with default settings."""
+        """Initialize the CLI with default settings.
+
+        Used in:
+        - cli.py
+        """
         self.console = Console()
 
     def run(
@@ -64,6 +74,9 @@ class UzpyCLI:
             include_classes: Include class definitions in analysis
             include_functions: Include function definitions in analysis
             xclude_patterns: Comma-separated glob patterns to exclude from analysis
+
+        Used in:
+        - cli.py
         """
         # Configure logging
         logger.remove()  # Remove default handler
@@ -169,7 +182,7 @@ class UzpyCLI:
                 if verbose and references:
                     console.print(f"[green]  Found {len(references)} references in {len(usage_files)} files[/green]")
                 elif verbose:
-                    console.print(f"[yellow]  No references found[/yellow]")
+                    console.print("[yellow]  No references found[/yellow]")
 
             except Exception as e:
                 console.print(f"[red]Error analyzing {construct.name}: {e}[/red]")

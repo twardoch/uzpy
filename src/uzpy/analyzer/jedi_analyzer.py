@@ -5,6 +5,9 @@ Jedi-based analyzer for finding construct usage across Python codebases.
 
 Jedi provides fast symbol resolution and reference finding, optimized
 for interactive use with excellent caching mechanisms.
+
+Used in:
+- analyzer/jedi_analyzer.py
 """
 
 import time
@@ -24,6 +27,9 @@ class JediAnalyzer:
 
     Uses Jedi's static analysis for fast symbol resolution and reference finding.
     Provides good caching and handles large codebases efficiently.
+
+    Used in:
+    - analyzer/jedi_analyzer.py
     """
 
     def __init__(self, project_path: Path):
@@ -32,6 +38,9 @@ class JediAnalyzer:
 
         Args:
             project_path: Root directory of the project to analyze
+
+        Used in:
+        - analyzer/jedi_analyzer.py
         """
         self.project_path = project_path
         self.project = jedi.Project(str(project_path))
@@ -47,6 +56,9 @@ class JediAnalyzer:
 
         Returns:
             List of file paths where the construct is used
+
+        Used in:
+        - analyzer/jedi_analyzer.py
         """
         usage_files = set()
 
@@ -99,6 +111,9 @@ class JediAnalyzer:
 
         Returns:
             Tuple of (line, column) for the definition, or None if not found
+
+        Used in:
+        - analyzer/jedi_analyzer.py
         """
         lines = source_code.split("\n")
 
@@ -140,6 +155,9 @@ class JediAnalyzer:
 
         Returns:
             Set of file paths that potentially contain the construct
+
+        Used in:
+        - analyzer/jedi_analyzer.py
         """
         usage_files = set()
 
@@ -171,7 +189,11 @@ class JediAnalyzer:
         return usage_files
 
     def _is_file_in_search_path(self, file_path: Path, search_path: Path) -> bool:
-        """Check if a file is within a search path."""
+        """Check if a file is within a search path.
+
+        Used in:
+        - analyzer/jedi_analyzer.py
+        """
         try:
             if search_path.is_file():
                 return file_path.resolve() == search_path.resolve()
@@ -190,6 +212,9 @@ class JediAnalyzer:
 
         Returns:
             Dictionary mapping construct full names to lists of usage files
+
+        Used in:
+        - analyzer/jedi_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Jedi")
         start_time = time.time()
@@ -213,7 +238,11 @@ class JediAnalyzer:
         return results
 
     def get_project_info(self) -> dict[str, any]:
-        """Get information about the Jedi project."""
+        """Get information about the Jedi project.
+
+        Used in:
+        - analyzer/jedi_analyzer.py
+        """
         try:
             return {
                 "project_path": str(self.project_path),

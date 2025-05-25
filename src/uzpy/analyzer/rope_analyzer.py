@@ -5,6 +5,9 @@ Rope-based analyzer for finding construct usage across Python codebases.
 
 Rope provides excellent cross-file reference finding with proper handling
 of Python's import systems, inheritance, and scoping rules.
+
+Used in:
+- analyzer/rope_analyzer.py
 """
 
 import time
@@ -25,6 +28,9 @@ class RopeAnalyzer:
 
     Uses Rope's static analysis capabilities to find where functions,
     classes, and methods are used across a Python codebase.
+
+    Used in:
+    - analyzer/rope_analyzer.py
     """
 
     def __init__(self, root_path: Path):
@@ -33,13 +39,20 @@ class RopeAnalyzer:
 
         Args:
             root_path: Root directory of the project to analyze
+
+        Used in:
+        - analyzer/rope_analyzer.py
         """
         self.root_path = root_path
         self.project: Project | None = None
         self._init_project()
 
     def _init_project(self) -> None:
-        """Initialize the Rope project."""
+        """Initialize the Rope project.
+
+        Used in:
+        - analyzer/rope_analyzer.py
+        """
         try:
             logger.debug(f"Initializing Rope project at {self.root_path}")
             self.project = Project(str(self.root_path))
@@ -58,6 +71,9 @@ class RopeAnalyzer:
 
         Returns:
             List of file paths where the construct is used
+
+        Used in:
+        - analyzer/rope_analyzer.py
         """
         if not self.project:
             logger.error("Rope project not initialized")
@@ -112,6 +128,9 @@ class RopeAnalyzer:
 
         Returns:
             Byte offset of the construct definition, or None if not found
+
+        Used in:
+        - analyzer/rope_analyzer.py
         """
         try:
             source_code = resource.read()
@@ -161,6 +180,9 @@ class RopeAnalyzer:
 
         Returns:
             True if the file is within the search path
+
+        Used in:
+        - analyzer/rope_analyzer.py
         """
         try:
             if search_path.is_file():
@@ -180,6 +202,9 @@ class RopeAnalyzer:
 
         Returns:
             Dictionary mapping construct full names to lists of usage files
+
+        Used in:
+        - analyzer/rope_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Rope")
         start_time = time.time()
@@ -203,7 +228,11 @@ class RopeAnalyzer:
         return results
 
     def get_project_info(self) -> dict[str, any]:
-        """Get information about the Rope project."""
+        """Get information about the Rope project.
+
+        Used in:
+        - analyzer/rope_analyzer.py
+        """
         if not self.project:
             return {}
 
@@ -223,7 +252,11 @@ class RopeAnalyzer:
             return {"error": str(e)}
 
     def close(self) -> None:
-        """Clean up the Rope project."""
+        """Clean up the Rope project.
+
+        Used in:
+        - analyzer/rope_analyzer.py
+        """
         if self.project:
             try:
                 self.project.close()

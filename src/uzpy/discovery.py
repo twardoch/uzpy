@@ -5,6 +5,9 @@ File discovery utilities for finding Python files in codebases.
 
 This module handles finding Python files while respecting gitignore patterns,
 common exclude patterns, and providing efficient traversal of directory trees.
+
+Used in:
+- discovery.py
 """
 
 import fnmatch
@@ -22,6 +25,9 @@ class FileDiscovery:
 
     Handles gitignore patterns, custom exclude patterns, and provides
     efficient traversal with proper error handling.
+
+    Used in:
+    - discovery.py
     """
 
     # Default patterns to exclude
@@ -49,6 +55,9 @@ class FileDiscovery:
 
         Args:
             exclude_patterns: Additional patterns to exclude beyond defaults
+
+        Used in:
+        - discovery.py
         """
         self.exclude_patterns = self.DEFAULT_EXCLUDE_PATTERNS.copy()
         if exclude_patterns:
@@ -71,6 +80,9 @@ class FileDiscovery:
         Raises:
             FileNotFoundError: If root_path doesn't exist
             PermissionError: If can't access directory
+
+        Used in:
+        - discovery.py
         """
         if not root_path.exists():
             msg = f"Path does not exist: {root_path}"
@@ -107,6 +119,9 @@ class FileDiscovery:
 
         Yields:
             All file paths found in the tree
+
+        Used in:
+        - discovery.py
         """
         try:
             for item in root_path.iterdir():
@@ -129,6 +144,9 @@ class FileDiscovery:
 
         Returns:
             True if the file appears to be a Python file
+
+        Used in:
+        - discovery.py
         """
         if path.suffix == ".py":
             return True
@@ -154,6 +172,9 @@ class FileDiscovery:
 
         Returns:
             True if the path should be excluded
+
+        Used in:
+        - discovery.py
         """
         # Convert to relative path for pattern matching
         try:
@@ -173,6 +194,9 @@ class FileDiscovery:
 
         Returns:
             Dictionary with file counts and other statistics
+
+        Used in:
+        - discovery.py
         """
         stats = {
             "total_python_files": 0,
@@ -213,6 +237,9 @@ def discover_files(
 
     Returns:
         Tuple of (edit_files, ref_files) lists
+
+    Used in:
+    - discovery.py
     """
     discovery = FileDiscovery(exclude_patterns)
 

@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
-    """Configuration settings for uzpy."""
+    """Configuration settings for uzpy.
+
+    Used in:
+    - uzpy.py
+    """
 
     name: str
     value: str | int | float
@@ -38,6 +42,9 @@ def process_data(data: list[Any], config: Config | None = None, *, debug: bool =
 
     Raises:
         ValueError: If input data is invalid
+
+    Used in:
+    - uzpy.py
     """
     if debug:
         logger.setLevel(logging.DEBUG)
@@ -53,7 +60,11 @@ def process_data(data: list[Any], config: Config | None = None, *, debug: bool =
 
 
 def main() -> None:
-    """Main entry point for uzpy."""
+    """Main entry point for uzpy.
+
+    Used in:
+    - uzpy.py
+    """
     try:
         # Example usage
         config = Config(name="default", value="test", options={"key": "value"})

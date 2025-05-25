@@ -5,6 +5,9 @@ Hybrid analyzer combining Rope and Jedi for optimal accuracy and performance.
 
 This analyzer uses both Rope and Jedi to find construct usage, leveraging
 Rope's accuracy for complex cases and Jedi's speed for straightforward ones.
+
+Used in:
+- analyzer/hybrid_analyzer.py
 """
 
 import time
@@ -24,6 +27,9 @@ class HybridAnalyzer:
 
     Uses Jedi for fast initial analysis and Rope for verification and
     complex cases. Provides confidence scoring and fallback mechanisms.
+
+    Used in:
+    - analyzer/hybrid_analyzer.py
     """
 
     def __init__(self, project_path: Path):
@@ -32,6 +38,9 @@ class HybridAnalyzer:
 
         Args:
             project_path: Root directory of the project to analyze
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
         """
         self.project_path = project_path
 
@@ -68,6 +77,9 @@ class HybridAnalyzer:
 
         Returns:
             List of file paths where the construct is used
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
         """
         jedi_results = set()
         rope_results = set()
@@ -125,6 +137,9 @@ class HybridAnalyzer:
 
         Returns:
             Dictionary mapping construct full names to lists of usage files
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
         """
         logger.info(f"Starting hybrid analysis of {len(constructs)} constructs")
         start_time = time.time()
@@ -157,7 +172,11 @@ class HybridAnalyzer:
         return results
 
     def _analyze_full_hybrid(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
-        """Full hybrid analysis using both analyzers for each construct."""
+        """Full hybrid analysis using both analyzers for each construct.
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        """
         results = {}
 
         for i, construct in enumerate(constructs):
@@ -174,7 +193,11 @@ class HybridAnalyzer:
         return results
 
     def _analyze_jedi_primary(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
-        """Jedi-primary analysis with selective Rope verification."""
+        """Jedi-primary analysis with selective Rope verification.
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        """
         # Use Jedi for initial analysis
         jedi_results = self.jedi_analyzer.analyze_batch(constructs, search_paths)
 
@@ -202,7 +225,11 @@ class HybridAnalyzer:
         return jedi_results
 
     def _analyze_rope_only(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
-        """Rope-only analysis fallback."""
+        """Rope-only analysis fallback.
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        """
         if not self.rope_available:
             logger.error("Rope analyzer not available for fallback")
             return {c.full_name: [] for c in constructs}
@@ -210,7 +237,11 @@ class HybridAnalyzer:
         return self.rope_analyzer.analyze_batch(constructs, search_paths)
 
     def get_analyzer_status(self) -> dict[str, any]:
-        """Get status information about both analyzers."""
+        """Get status information about both analyzers.
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        """
         status = {
             "rope_available": self.rope_available,
             "jedi_available": self.jedi_available,
@@ -226,7 +257,11 @@ class HybridAnalyzer:
         return status
 
     def close(self) -> None:
-        """Clean up both analyzers."""
+        """Clean up both analyzers.
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        """
         if self.rope_analyzer:
             self.rope_analyzer.close()
 

@@ -5,6 +5,9 @@ LibCST-based modifier for updating docstrings with usage information.
 
 This module uses LibCST to safely modify Python source code, preserving
 formatting and comments while updating docstrings with where constructs are used.
+
+Used in:
+- modifier/libcst_modifier.py
 """
 
 import re
@@ -24,15 +27,21 @@ class DocstringModifier(cst.CSTTransformer):
 
     This transformer preserves all formatting and comments while updating
     docstrings to include information about where constructs are used.
+
+    Used in:
+    - modifier/libcst_modifier.py
     """
 
-    def __init__(self, usage_map: Dict[Construct, List[Reference]], project_root: Path):
+    def __init__(self, usage_map: dict[Construct, list[Reference]], project_root: Path):
         """
         Initialize the docstring modifier.
 
         Args:
             usage_map: Mapping of constructs to their usage references
             project_root: Root directory of the project for relative paths
+
+        Used in:
+        - modifier/libcst_modifier.py
         """
         self.usage_map = usage_map
         self.project_root = project_root
@@ -49,19 +58,35 @@ class DocstringModifier(cst.CSTTransformer):
         logger.debug(f"Built construct lookup for {len(usage_map)} constructs")
 
     def set_current_file(self, file_path: Path) -> None:
-        """Set the current file being processed."""
+        """Set the current file being processed.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         self.current_file = file_path
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        """Update function docstrings with usage information."""
+        """Update function docstrings with usage information.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         return self._update_construct_docstring(original_node, updated_node, "function")
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Update class docstrings with usage information."""
+        """Update class docstrings with usage information.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         return self._update_construct_docstring(original_node, updated_node, "class")
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        """Update module docstrings with usage information."""
+        """Update module docstrings with usage information.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if not updated_node.body:
             return updated_node
 
@@ -78,12 +103,16 @@ class DocstringModifier(cst.CSTTransformer):
                         new_docstring = self._update_docstring_content(expr.value.value, references)
                         new_expr = expr.with_changes(value=cst.SimpleString(new_docstring))
                         new_stmt = first_stmt.with_changes(body=[new_expr])
-                        return updated_node.with_changes(body=[new_stmt] + list(updated_node.body[1:]))
+                        return updated_node.with_changes(body=[new_stmt, *list(updated_node.body[1:])])
 
         return updated_node
 
     def _update_construct_docstring(self, original_node, updated_node, construct_type: str):
-        """Generic method to update construct docstrings."""
+        """Generic method to update construct docstrings.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if not self.current_file:
             return updated_node
 
@@ -106,15 +135,18 @@ class DocstringModifier(cst.CSTTransformer):
             # Add a new docstring if none exists
             new_docstring = self._create_new_docstring(references)
             return self._add_docstring_to_node(updated_node, new_docstring)
-        else:
-            # Update existing docstring
-            current_content = docstring_node.value
-            updated_content = self._update_docstring_content(current_content, references)
-            new_docstring_node = docstring_node.with_changes(value=updated_content)
-            return self._replace_docstring_in_node(updated_node, new_docstring_node)
+        # Update existing docstring
+        current_content = docstring_node.value
+        updated_content = self._update_docstring_content(current_content, references)
+        new_docstring_node = docstring_node.with_changes(value=updated_content)
+        return self._replace_docstring_in_node(updated_node, new_docstring_node)
 
-    def _find_construct(self, name: str, line_number: int) -> Optional[Construct]:
-        """Find a construct by name and line number."""
+    def _find_construct(self, name: str, line_number: int) -> Construct | None:
+        """Find a construct by name and line number.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if not self.current_file or self.current_file not in self.construct_lookup:
             return None
 
@@ -132,13 +164,21 @@ class DocstringModifier(cst.CSTTransformer):
         return construct
 
     def _get_node_line(self, node) -> int:
-        """Get the line number of a node (simplified - LibCST doesn't store line numbers directly)."""
+        """Get the line number of a node (simplified - LibCST doesn't store line numbers directly).
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         # For now, return 1. In a real implementation, we'd need to track positions.
         # This is a limitation we'll address by using the construct's stored line number.
         return 1
 
-    def _get_docstring_node(self, node) -> Optional[cst.SimpleString]:
-        """Extract the docstring node from a function, class, or module."""
+    def _get_docstring_node(self, node) -> cst.SimpleString | None:
+        """Extract the docstring node from a function, class, or module.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         body = None
 
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
@@ -158,20 +198,24 @@ class DocstringModifier(cst.CSTTransformer):
 
         return None
 
-    def _update_docstring_content(self, current_docstring: str, references: List[Reference]) -> str:
-        """Update docstring content with usage information."""
+    def _update_docstring_content(self, current_docstring: str, references: list[Reference]) -> str:
+        """Update docstring content with usage information.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         # Remove quotes from current docstring
         quote_char = '"""' if current_docstring.startswith('"""') else '"'
         content = current_docstring.strip(quote_char)
 
         # Detect and preserve indentation from the original docstring
-        lines = content.split('\n')
+        lines = content.split("\n")
         base_indent = ""
         if len(lines) > 1:
             # Find indentation from the first non-empty line after the first
             for line in lines[1:]:
                 if line.strip():
-                    base_indent = line[:len(line) - len(line.lstrip())]
+                    base_indent = line[: len(line) - len(line.lstrip())]
                     break
 
         # Remove existing usage information if present
@@ -181,19 +225,19 @@ class DocstringModifier(cst.CSTTransformer):
         usage_section = self._generate_usage_section_with_indent(references, base_indent)
 
         # Combine content and usage
-        if content.strip():
-            updated_content = f"{content.rstrip()}\n\n{usage_section}"
-        else:
-            updated_content = usage_section
+        updated_content = f"{content.rstrip()}\n\n{usage_section}" if content.strip() else usage_section
 
         # Add proper indentation to closing quotes for triple-quoted strings
         if quote_char == '"""' and base_indent:
-            return f'{quote_char}{updated_content}{base_indent}{quote_char}'
-        else:
-            return f"{quote_char}{updated_content}{quote_char}"
+            return f"{quote_char}{updated_content}{base_indent}{quote_char}"
+        return f"{quote_char}{updated_content}{quote_char}"
 
     def _remove_existing_usage_info(self, content: str) -> str:
-        """Remove existing usage information from docstring."""
+        """Remove existing usage information from docstring.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         # Look for existing usage sections and remove them
         patterns = [
             r"\n\s*Used in:.*?(?=\n\s*\w|\n\s*$|\Z)",
@@ -206,8 +250,12 @@ class DocstringModifier(cst.CSTTransformer):
 
         return content
 
-    def _generate_usage_section(self, references: List[Reference]) -> str:
-        """Generate the usage section text."""
+    def _generate_usage_section(self, references: list[Reference]) -> str:
+        """Generate the usage section text.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if not references:
             return ""
 
@@ -234,10 +282,14 @@ class DocstringModifier(cst.CSTTransformer):
             usage_lines.append(f"- {rel_path}")
 
         # Add one extra newline at the end of the "Used in" list
-        return f"Used in:\n" + "\n".join(usage_lines) + "\n"
+        return "Used in:\n" + "\n".join(usage_lines) + "\n"
 
-    def _generate_usage_section_with_indent(self, references: List[Reference], base_indent: str) -> str:
-        """Generate the usage section text with proper indentation."""
+    def _generate_usage_section_with_indent(self, references: list[Reference], base_indent: str) -> str:
+        """Generate the usage section text with proper indentation.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if not references:
             return ""
 
@@ -266,27 +318,39 @@ class DocstringModifier(cst.CSTTransformer):
         # Format with proper indentation and extra newline at the end
         return f"{base_indent}Used in:\n" + "\n".join(usage_lines) + "\n"
 
-    def _create_new_docstring(self, references: List[Reference]) -> str:
-        """Create a new docstring with usage information."""
+    def _create_new_docstring(self, references: list[Reference]) -> str:
+        """Create a new docstring with usage information.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         # For new docstrings, use standard indentation (4 spaces)
         base_indent = "    "
         usage_section = self._generate_usage_section_with_indent(references, base_indent)
         return f'"""{usage_section}{base_indent}"""'
 
     def _add_docstring_to_node(self, node, docstring: str):
-        """Add a docstring to a node that doesn't have one."""
+        """Add a docstring to a node that doesn't have one.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         new_docstring_stmt = cst.SimpleStatementLine([cst.Expr(cst.SimpleString(docstring))])
 
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
             # Function or class
             old_body = node.body.body
-            new_body = [new_docstring_stmt] + list(old_body)
+            new_body = [new_docstring_stmt, *list(old_body)]
             return node.with_changes(body=node.body.with_changes(body=new_body))
 
         return node
 
     def _replace_docstring_in_node(self, node, new_docstring_node):
-        """Replace the docstring in a node."""
+        """Replace the docstring in a node.
+
+        Used in:
+        - modifier/libcst_modifier.py
+        """
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
             # Function or class
             old_body = list(node.body.body)
@@ -307,6 +371,9 @@ class LibCSTModifier:
 
     Handles file reading, parsing, transformation, and writing while
     preserving formatting and handling errors gracefully.
+
+    Used in:
+    - modifier/libcst_modifier.py
     """
 
     def __init__(self, project_root: Path):
@@ -315,10 +382,13 @@ class LibCSTModifier:
 
         Args:
             project_root: Root directory of the project for relative paths
+
+        Used in:
+        - modifier/libcst_modifier.py
         """
         self.project_root = project_root
 
-    def modify_file(self, file_path: Path, usage_map: Dict[Construct, List[Reference]]) -> bool:
+    def modify_file(self, file_path: Path, usage_map: dict[Construct, list[Reference]]) -> bool:
         """
         Modify a single file's docstrings with usage information.
 
@@ -328,10 +398,13 @@ class LibCSTModifier:
 
         Returns:
             True if the file was successfully modified, False otherwise
+
+        Used in:
+        - modifier/libcst_modifier.py
         """
         try:
             # Read the source code
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 source_code = f.read()
 
             # Parse with LibCST
@@ -358,7 +431,7 @@ class LibCSTModifier:
             logger.error(f"Failed to modify {file_path}: {e}")
             return False
 
-    def modify_files(self, usage_results: Dict[Construct, List[Reference]]) -> Dict[str, bool]:
+    def modify_files(self, usage_results: dict[Construct, list[Reference]]) -> dict[str, bool]:
         """
         Modify multiple files based on usage results.
 
@@ -367,9 +440,12 @@ class LibCSTModifier:
 
         Returns:
             Dictionary mapping file paths to success status
+
+        Used in:
+        - modifier/libcst_modifier.py
         """
         # Group constructs by file
-        file_constructs: Dict[Path, Dict[Construct, List[Reference]]] = {}
+        file_constructs: dict[Path, dict[Construct, list[Reference]]] = {}
 
         logger.debug(f"Processing {len(usage_results)} constructs for modification")
 

@@ -6,6 +6,9 @@ Tree-sitter based parser for extracting Python constructs.
 This module uses Tree-sitter to parse Python code and extract function,
 class, and method definitions with their locations and existing docstrings.
 Tree-sitter provides fast, incremental parsing with excellent error recovery.
+
+Used in:
+- parser/tree_sitter_parser.py
 """
 
 import re
@@ -21,7 +24,11 @@ from tree_sitter import Language, Node, Parser
 
 
 class ConstructType(Enum):
-    """Types of Python constructs we can analyze."""
+    """Types of Python constructs we can analyze.
+
+    Used in:
+    - parser/tree_sitter_parser.py
+    """
 
     FUNCTION = "function"
     CLASS = "class"
@@ -42,6 +49,9 @@ class Construct:
         docstring: Existing docstring content (None if no docstring)
         full_name: Fully qualified name including class/module context
         node: The Tree-sitter node (for internal use)
+
+    Used in:
+    - parser/tree_sitter_parser.py
     """
 
     name: str
@@ -53,7 +63,11 @@ class Construct:
     node: Node | None = None  # Keep reference to tree-sitter node
 
     def __post_init__(self):
-        """Clean up docstring formatting after initialization."""
+        """Clean up docstring formatting after initialization.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         if self.docstring:
             self.docstring = self._clean_docstring(self.docstring)
 
@@ -62,6 +76,9 @@ class Construct:
         Clean and normalize docstring formatting.
 
         Removes extra indentation and normalizes quotes while preserving content.
+
+        Used in:
+        - parser/tree_sitter_parser.py
         """
         # Remove surrounding quotes
         if docstring.startswith(('"""', "'''")):
@@ -86,11 +103,19 @@ class Construct:
         return "\n".join(lines).strip()
 
     def __hash__(self) -> int:
-        """Make Construct hashable based on its unique identifying attributes."""
+        """Make Construct hashable based on its unique identifying attributes.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         return hash((self.name, self.type, str(self.file_path), self.line_number, self.full_name))
 
     def __eq__(self, other) -> bool:
-        """Compare constructs based on their unique identifying attributes."""
+        """Compare constructs based on their unique identifying attributes.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         if not isinstance(other, Construct):
             return False
         return (
@@ -112,6 +137,9 @@ class Reference:
         line_number: Line number of the reference (1-based)
         column_number: Column number of the reference (0-based)
         context: Surrounding code context for the reference
+
+    Used in:
+    - parser/tree_sitter_parser.py
     """
 
     file_path: Path
@@ -126,10 +154,17 @@ class TreeSitterParser:
 
     Provides fast parsing with error recovery and incremental capabilities.
     Extracts functions, classes, methods, and modules with their docstrings.
+
+    Used in:
+    - parser/tree_sitter_parser.py
     """
 
     def __init__(self):
-        """Initialize the Tree-sitter parser for Python."""
+        """Initialize the Tree-sitter parser for Python.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         # tspython.language() returns a PyCapsule that needs to be wrapped
         self.language = Language(tspython.language())
         self.parser = Parser(self.language)
@@ -140,7 +175,11 @@ class TreeSitterParser:
         logger.debug("Tree-sitter parser initialized")
 
     def _init_queries(self) -> None:
-        """Initialize Tree-sitter queries for finding constructs."""
+        """Initialize Tree-sitter queries for finding constructs.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         # Query for function definitions
         self.function_query = self.language.query("""
         (function_definition
@@ -184,6 +223,9 @@ class TreeSitterParser:
         Raises:
             FileNotFoundError: If the file doesn't exist
             UnicodeDecodeError: If the file can't be decoded as UTF-8
+
+        Used in:
+        - parser/tree_sitter_parser.py
         """
         logger.debug(f"Parsing file: {file_path}")
 
@@ -223,7 +265,11 @@ class TreeSitterParser:
         return constructs
 
     def _extract_functions(self, root_node: Node, file_path: Path, source_text: str) -> list[Construct]:
-        """Extract function definitions from the AST."""
+        """Extract function definitions from the AST.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         functions = []
 
         captures = self.function_query.captures(root_node)
@@ -271,7 +317,11 @@ class TreeSitterParser:
         return functions
 
     def _extract_classes(self, root_node: Node, file_path: Path, source_text: str) -> list[Construct]:
-        """Extract class definitions from the AST."""
+        """Extract class definitions from the AST.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         classes = []
 
         captures = self.class_query.captures(root_node)
@@ -315,7 +365,11 @@ class TreeSitterParser:
         return classes
 
     def _extract_methods(self, root_node: Node, file_path: Path, source_text: str) -> list[Construct]:
-        """Extract method definitions from classes."""
+        """Extract method definitions from classes.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         methods = []
 
         captures = self.method_query.captures(root_node)
@@ -364,7 +418,11 @@ class TreeSitterParser:
         return methods
 
     def _create_module_construct(self, file_path: Path, root_node: Node, source_text: str) -> Construct | None:
-        """Create a construct representing the module itself."""
+        """Create a construct representing the module itself.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         # Look for module-level docstring (first statement is a string)
         docstring = None
 
@@ -393,7 +451,11 @@ class TreeSitterParser:
         )
 
     def _extract_docstring(self, body_node: Node, source_text: str) -> str | None:
-        """Extract docstring from a function or class body."""
+        """Extract docstring from a function or class body.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         # Look for the first expression statement that contains a string
         for child in body_node.children:
             if child.type == "expression_statement":
@@ -403,13 +465,21 @@ class TreeSitterParser:
         return None
 
     def _get_node_text(self, node: Node, source_text: str) -> str:
-        """Get the text content of a Tree-sitter node."""
+        """Get the text content of a Tree-sitter node.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         start_byte = node.start_byte
         end_byte = node.end_byte
         return source_text[start_byte:end_byte]
 
     def _is_inside_class(self, node: Node) -> bool:
-        """Check if a node is inside a class definition."""
+        """Check if a node is inside a class definition.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         parent = node.parent
         while parent:
             if parent.type == "class_definition":
@@ -418,7 +488,11 @@ class TreeSitterParser:
         return False
 
     def _build_full_name(self, node: Node, name: str, source_text: str) -> str:
-        """Build the fully qualified name for a construct."""
+        """Build the fully qualified name for a construct.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         parts = [name]
 
         # Walk up the tree to find containing classes
@@ -436,7 +510,11 @@ class TreeSitterParser:
         return ".".join(parts)
 
     def get_statistics(self, file_path: Path) -> dict[str, int]:
-        """Get parsing statistics for a file."""
+        """Get parsing statistics for a file.
+
+        Used in:
+        - parser/tree_sitter_parser.py
+        """
         constructs = self.parse_file(file_path)
 
         return {
