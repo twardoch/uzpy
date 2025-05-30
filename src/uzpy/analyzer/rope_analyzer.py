@@ -12,7 +12,6 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 from loguru import logger
 from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError
@@ -31,6 +30,8 @@ class RopeAnalyzer:
 
     Used in:
     - analyzer/rope_analyzer.py
+    - uzpy/analyzer/__init__.py
+    - uzpy/analyzer/hybrid_analyzer.py
     """
 
     def __init__(self, root_path: Path):
@@ -74,6 +75,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         if not self.project:
             logger.error("Rope project not initialized")
@@ -205,6 +207,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Rope")
         start_time = time.time()
@@ -232,6 +235,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         if not self.project:
             return {}
@@ -256,6 +260,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         if self.project:
             try:

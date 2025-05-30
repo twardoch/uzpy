@@ -12,10 +12,8 @@ Used in:
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Set
 
 import libcst as cst
-from libcst import matchers as m
 from loguru import logger
 
 from uzpy.parser import Construct, Reference
@@ -30,6 +28,7 @@ class DocstringModifier(cst.CSTTransformer):
 
     Used in:
     - modifier/libcst_modifier.py
+    - uzpy/modifier/__init__.py
     """
 
     def __init__(self, usage_map: dict[Construct, list[Reference]], project_root: Path):
@@ -225,9 +224,13 @@ class DocstringModifier(cst.CSTTransformer):
         if original_indent:
             base_indent = original_indent
 
-        # Convert new references to relative paths
+        # Convert new references to relative paths, excluding same-file references
         new_paths = set()
         for ref in references:
+            # Skip references to the same file being modified
+            if self.current_file and ref.file_path.resolve() == self.current_file.resolve():
+                continue
+
             try:
                 # Resolve both paths to ensure proper comparison
                 resolved_file = ref.file_path.resolve()
@@ -270,6 +273,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         Returns:
             Tuple of (cleaned_content, existing_paths_set, original_indent)
+
         """
         # Pattern to match "Used in:" section with paths
         pattern = r"(\n\s*)(Used in:(?:\s*\n(?:\s*-\s*[^\n]+\n?)*)\s*)"
@@ -312,9 +316,13 @@ class DocstringModifier(cst.CSTTransformer):
         # For new docstrings, use standard indentation (4 spaces)
         base_indent = "    "
 
-        # Convert references to relative paths
+        # Convert references to relative paths, excluding same-file references
         relative_paths = set()
         for ref in references:
+            # Skip references to the same file being modified
+            if self.current_file and ref.file_path.resolve() == self.current_file.resolve():
+                continue
+
             try:
                 # Resolve both paths to ensure proper comparison
                 resolved_file = ref.file_path.resolve()
@@ -385,6 +393,8 @@ class LibCSTModifier:
 
     Used in:
     - modifier/libcst_modifier.py
+    - uzpy/cli.py
+    - uzpy/modifier/__init__.py
     """
 
     def __init__(self, project_root: Path):
@@ -454,6 +464,7 @@ class LibCSTModifier:
 
         Used in:
         - modifier/libcst_modifier.py
+        - uzpy/cli.py
         """
         # Group constructs by file
         file_constructs: dict[Path, dict[Construct, list[Reference]]] = {}
@@ -478,6 +489,191 @@ class LibCSTModifier:
         for file_path, construct_map in file_constructs.items():
             logger.debug(f"Modifying {file_path} with {len(construct_map)} constructs")
             success = self.modify_file(file_path, construct_map)
+            results[str(file_path)] = success
+
+        return results
+
+
+class DocstringCleaner(cst.CSTTransformer):
+    """
+    LibCST transformer for removing 'Used in:' sections from docstrings.
+
+    This transformer preserves all formatting and comments while removing
+    any 'Used in:' sections from docstrings.
+    """
+
+    def __init__(self):
+        """Initialize the docstring cleaner."""
+        pass
+
+    def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
+        """Clean function docstrings by removing usage information."""
+        return self._clean_construct_docstring(updated_node)
+
+    def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
+        """Clean class docstrings by removing usage information."""
+        return self._clean_construct_docstring(updated_node)
+
+    def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
+        """Clean module docstrings by removing usage information."""
+        if not updated_node.body:
+            return updated_node
+
+        # Check if first statement is a docstring
+        first_stmt = updated_node.body[0]
+        if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) == 1:
+            expr = first_stmt.body[0]
+            if isinstance(expr, cst.Expr) and isinstance(expr.value, cst.SimpleString):
+                # This is a module docstring
+                cleaned_content = self._clean_docstring_content(expr.value.value)
+                if cleaned_content != expr.value.value:
+                    new_expr = expr.with_changes(value=cst.SimpleString(cleaned_content))
+                    new_stmt = first_stmt.with_changes(body=[new_expr])
+                    return updated_node.with_changes(body=[new_stmt, *list(updated_node.body[1:])])
+
+        return updated_node
+
+    def _clean_construct_docstring(self, updated_node):
+        """Generic method to clean construct docstrings."""
+        # Find and clean the docstring
+        docstring_node = self._get_docstring_node(updated_node)
+        if docstring_node is None:
+            return updated_node
+
+        # Clean existing docstring
+        current_content = docstring_node.value
+        cleaned_content = self._clean_docstring_content(current_content)
+
+        if cleaned_content != current_content:
+            new_docstring_node = docstring_node.with_changes(value=cleaned_content)
+            return self._replace_docstring_in_node(updated_node, new_docstring_node)
+
+        return updated_node
+
+    def _get_docstring_node(self, node) -> cst.SimpleString | None:
+        """Extract the docstring node from a function, class, or module."""
+        body = None
+
+        if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
+            body = node.body.body
+        elif hasattr(node, "body") and isinstance(node.body, list):
+            body = node.body
+
+        if not body:
+            return None
+
+        # Check if first statement is a docstring
+        first_stmt = body[0]
+        if isinstance(first_stmt, cst.SimpleStatementLine) and len(first_stmt.body) == 1:
+            expr = first_stmt.body[0]
+            if isinstance(expr, cst.Expr) and isinstance(expr.value, cst.SimpleString):
+                return expr.value
+
+        return None
+
+    def _clean_docstring_content(self, current_docstring: str) -> str:
+        """Remove 'Used in:' sections from docstring content."""
+        # Remove quotes from current docstring
+        quote_char = '"""' if current_docstring.startswith('"""') else '"'
+        content = current_docstring.strip(quote_char)
+
+        # Use the same pattern as in DocstringModifier to remove "Used in:" sections
+        pattern = r"(\n\s*)(Used in:(?:\s*\n(?:\s*-\s*[^\n]+\n?)*)\s*)"
+        cleaned_content = re.sub(pattern, "", content, flags=re.MULTILINE | re.DOTALL)
+
+        # Clean up any trailing whitespace
+        cleaned_content = cleaned_content.rstrip()
+
+        # Add back quotes
+        return f"{quote_char}{cleaned_content}{quote_char}"
+
+    def _replace_docstring_in_node(self, node, new_docstring_node):
+        """Replace the docstring in a node."""
+        if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
+            # Function or class
+            old_body = list(node.body.body)
+            if old_body and isinstance(old_body[0], cst.SimpleStatementLine):
+                old_stmt = old_body[0]
+                if len(old_stmt.body) == 1 and isinstance(old_stmt.body[0], cst.Expr):
+                    new_expr = old_stmt.body[0].with_changes(value=new_docstring_node)
+                    new_stmt = old_stmt.with_changes(body=[new_expr])
+                    new_body = [new_stmt] + old_body[1:]
+                    return node.with_changes(body=node.body.with_changes(body=new_body))
+
+        return node
+
+
+class LibCSTCleaner:
+    """
+    High-level interface for cleaning 'Used in:' sections from Python files.
+
+    Handles file reading, parsing, transformation, and writing while
+    preserving formatting and handling errors gracefully.
+    """
+
+    def __init__(self, project_root: Path):
+        """
+        Initialize the LibCST cleaner.
+
+        Args:
+            project_root: Root directory of the project
+        """
+        self.project_root = project_root
+
+    def clean_file(self, file_path: Path) -> bool:
+        """
+        Clean a single file by removing 'Used in:' sections from docstrings.
+
+        Args:
+            file_path: Path to the Python file to clean
+
+        Returns:
+            True if the file was successfully cleaned, False otherwise
+        """
+        try:
+            # Read the source code
+            with open(file_path, encoding="utf-8") as f:
+                source_code = f.read()
+
+            # Parse with LibCST
+            tree = cst.parse_module(source_code)
+
+            # Transform the tree
+            cleaner = DocstringCleaner()
+            cleaned_tree = tree.visit(cleaner)
+
+            # Check if any changes were made
+            if cleaned_tree.code == source_code:
+                logger.debug(f"No cleaning needed for {file_path}")
+                return False
+
+            # Write back the cleaned code
+            with open(file_path, "w", encoding="utf-8") as f:
+                f.write(cleaned_tree.code)
+
+            logger.info(f"Cleaned 'Used in:' sections from {file_path}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to clean {file_path}: {e}")
+            return False
+
+    def clean_files(self, file_paths: list[Path]) -> dict[str, bool]:
+        """
+        Clean multiple files by removing 'Used in:' sections.
+
+        Args:
+            file_paths: List of file paths to clean
+
+        Returns:
+            Dictionary mapping file paths to success status
+        """
+        logger.info(f"Cleaning 'Used in:' sections from {len(file_paths)} files")
+
+        results = {}
+        for file_path in file_paths:
+            logger.debug(f"Cleaning {file_path}")
+            success = self.clean_file(file_path)
             results[str(file_path)] = success
 
         return results

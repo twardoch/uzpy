@@ -10,10 +10,8 @@ Used in:
 - discovery.py
 """
 
-import fnmatch
 from collections.abc import Iterator
 from pathlib import Path
-from typing import List, Optional, Set
 
 import pathspec
 from loguru import logger
@@ -28,6 +26,7 @@ class FileDiscovery:
 
     Used in:
     - discovery.py
+    - uzpy/cli.py
     """
 
     # Default patterns to exclude
@@ -83,6 +82,7 @@ class FileDiscovery:
 
         Used in:
         - discovery.py
+        - uzpy/cli.py
         """
         if not root_path.exists():
             msg = f"Path does not exist: {root_path}"
@@ -240,6 +240,7 @@ def discover_files(
 
     Used in:
     - discovery.py
+    - uzpy/cli.py
     """
     discovery = FileDiscovery(exclude_patterns)
 

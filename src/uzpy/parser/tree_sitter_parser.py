@@ -11,12 +11,9 @@ Used in:
 - parser/tree_sitter_parser.py
 """
 
-import re
-from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 import tree_sitter_python as tspython
 from loguru import logger
@@ -28,6 +25,10 @@ class ConstructType(Enum):
 
     Used in:
     - parser/tree_sitter_parser.py
+    - uzpy/analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/jedi_analyzer.py
+    - uzpy/analyzer/rope_analyzer.py
+    - uzpy/parser/__init__.py
     """
 
     FUNCTION = "function"
@@ -52,6 +53,11 @@ class Construct:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - uzpy/analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/jedi_analyzer.py
+    - uzpy/analyzer/rope_analyzer.py
+    - uzpy/modifier/libcst_modifier.py
+    - uzpy/parser/__init__.py
     """
 
     name: str
@@ -140,6 +146,9 @@ class Reference:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - uzpy/cli.py
+    - uzpy/modifier/libcst_modifier.py
+    - uzpy/parser/__init__.py
     """
 
     file_path: Path
@@ -157,6 +166,8 @@ class TreeSitterParser:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - uzpy/cli.py
+    - uzpy/parser/__init__.py
     """
 
     def __init__(self):
@@ -226,6 +237,7 @@ class TreeSitterParser:
 
         Used in:
         - parser/tree_sitter_parser.py
+        - uzpy/cli.py
         """
         logger.debug(f"Parsing file: {file_path}")
 

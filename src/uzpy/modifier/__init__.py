@@ -4,6 +4,6 @@
 Modifier module for updating docstrings with usage information.
 """
 
-from uzpy.modifier.libcst_modifier import DocstringModifier, LibCSTModifier
+from uzpy.modifier.libcst_modifier import DocstringCleaner, DocstringModifier, LibCSTCleaner, LibCSTModifier
 
-__all__ = ["DocstringModifier", "LibCSTModifier"]
+__all__ = ["DocstringCleaner", "DocstringModifier", "LibCSTCleaner", "LibCSTModifier"]

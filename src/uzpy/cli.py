@@ -16,17 +16,15 @@ Used in:
 
 import sys
 from pathlib import Path
-from typing import List, Optional
 
 import fire
 from loguru import logger
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 
 from uzpy.analyzer import HybridAnalyzer
 from uzpy.discovery import FileDiscovery, discover_files
-from uzpy.modifier import LibCSTModifier
+from uzpy.modifier import LibCSTCleaner, LibCSTModifier
 from uzpy.parser import Reference, TreeSitterParser
 
 console = Console()
@@ -43,27 +41,17 @@ class UzpyCLI:
     - cli.py
     """
 
-    def __init__(self):
-        """Initialize the CLI with default settings.
-
-        Used in:
-        - cli.py
-        """
-        self.console = Console()
-
-    def run(
+    def __init__(
         self,
-        edit: str,
-        ref: str | None = None,
-        verbose: bool = False,
-        dry_run: bool = False,
+        edit: str | Path | None = None,
+        ref: str | Path | None = None,
+        xclude_patterns: str | None = None,
         methods_include: bool = True,
         classes_include: bool = True,
         functions_include: bool = True,
-        xclude_patterns: str | None = None,
+        verbose: bool = False,
     ) -> None:
-        """
-        Analyze codebase and update docstrings with usage information.
+        """Initialize the CLI with default settings.
 
         Args:
             edit: Path to file or directory containing code to analyze and modify
@@ -78,30 +66,50 @@ class UzpyCLI:
         Used in:
         - cli.py
         """
+        # self.console = Console()
+        self.edit = Path(edit) if edit else Path.cwd()
+        self.ref = Path(ref) if ref else self.edit
+        # Remove this line since dry_run is not a parameter
+        self.xclude_patterns = xclude_patterns.split(",") if xclude_patterns else None
+        self.methods_include = bool(methods_include)
+        self.classes_include = bool(classes_include)
+        self.functions_include = bool(functions_include)
+        self.verbose = bool(verbose)
+
+    def test(self) -> None:
+        self.run(_dry_run=True)
+
+    def run(self, _dry_run: bool = False) -> None:
+        """
+        Analyze codebase and update docstrings with usage information.
+
+        Used in:
+        - cli.py
+        """
         # Configure logging
         logger.remove()  # Remove default handler
-        level = "DEBUG" if verbose else "INFO"
+        level = "DEBUG" if self.verbose else "INFO"
         logger.add(
             sys.stderr, level=level, format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}"
         )
 
         # Validate paths
-        edit_path = Path(edit)
+        edit_path = Path(self.edit)
         if not edit_path.exists():
-            console.print(f"[red]Error: Edit path '{edit}' does not exist[/red]")
+            console.print(f"[red]Error: Edit path '{self.edit}' does not exist[/red]")
             return
 
-        ref_path = Path(ref) if ref else edit_path
+        ref_path = Path(self.ref) if self.ref else edit_path
         if not ref_path.exists():
-            console.print(f"[red]Error: Reference path '{ref}' does not exist[/red]")
+            console.print(f"[red]Error: Reference path '{self.ref}' does not exist[/red]")
             return
 
         # Show configuration
-        self._show_config(edit_path, ref_path, dry_run, verbose)
+        self._show_config(_dry_run)
 
         # Discover files
         try:
-            exclude_list = xclude_patterns.split(",") if xclude_patterns else None
+            exclude_list = self.xclude_patterns.split(",") if self.xclude_patterns else None
             edit_files, ref_files = discover_files(edit_path, ref_path, exclude_list)
         except Exception as e:
             console.print(f"[red]Error discovering files: {e}[/red]")
@@ -132,7 +140,7 @@ class UzpyCLI:
                 logger.debug(f"Found {len(constructs)} constructs in {edit_file}")
             except Exception as e:
                 logger.error(f"Failed to parse {edit_file}: {e}")
-                if not verbose:
+                if not self.verbose:
                     continue
                 raise
 
@@ -145,16 +153,16 @@ class UzpyCLI:
 
         logger.info("Starting uzpy analysis...")
 
-        if dry_run:
+        if _dry_run:
             logger.info("DRY RUN MODE - no files will be modified")
 
         # Initialize analyzer for reference finding
         try:
-            analyzer = HybridAnalyzer(ref_path)
+            analyzer = HybridAnalyzer(self.ref)
             logger.info("Initialized hybrid analyzer")
         except Exception as e:
             console.print(f"[red]Failed to initialize analyzer: {e}[/red]")
-            if verbose:
+            if self.verbose:
                 logger.exception("Analyzer initialization failed")
             return
 
@@ -165,10 +173,10 @@ class UzpyCLI:
 
         # Get all reference files for analysis
         file_discovery = FileDiscovery()
-        ref_files = list(file_discovery.find_python_files(ref_path))
+        ref_files = list(file_discovery.find_python_files(self.ref))
 
         for i, construct in enumerate(all_constructs, 1):
-            if verbose:
+            if self.verbose:
                 console.print(f"[dim]Analyzing {construct.name} ({i}/{total_constructs})[/dim]")
 
             try:
@@ -179,25 +187,25 @@ class UzpyCLI:
                 references = [Reference(file_path=file_path, line_number=1) for file_path in usage_files]
                 usage_results[construct] = references
 
-                if verbose and references:
+                if self.verbose and references:
                     console.print(f"[green]  Found {len(references)} references in {len(usage_files)} files[/green]")
-                elif verbose:
+                elif self.verbose:
                     console.print("[yellow]  No references found[/yellow]")
 
             except Exception as e:
                 console.print(f"[red]Error analyzing {construct.name}: {e}[/red]")
-                if verbose:
+                if self.verbose:
                     logger.exception(f"Failed to analyze construct {construct.name}")
                 usage_results[construct] = []
 
         # Show analysis summary
         self._show_analysis_summary(usage_results)
 
-        if not dry_run:
+        if not _dry_run:
             # Apply docstring modifications
             console.print("[blue]Updating docstrings...[/blue]")
             try:
-                modifier = LibCSTModifier(ref_path.parent if ref_path.is_file() else ref_path)
+                modifier = LibCSTModifier(self.ref.parent if self.ref.is_file() else self.ref)
                 modification_results = modifier.modify_files(usage_results)
 
                 # Show modification summary
@@ -209,28 +217,28 @@ class UzpyCLI:
                 else:
                     console.print("[yellow]No files needed modification[/yellow]")
 
-                if verbose:
+                if self.verbose:
                     for file_path, success in modification_results.items():
                         status = "[green]✓[/green]" if success else "[red]✗[/red]"
                         console.print(f"  {status} {file_path}")
 
             except Exception as e:
                 console.print(f"[red]Failed to apply modifications: {e}[/red]")
-                if verbose:
+                if self.verbose:
                     logger.exception("Modification failed")
         else:
             console.print("[green]Analysis complete - dry run mode[/green]")
 
-    def _show_config(self, edit_path: Path, ref_path: Path, dry_run: bool, verbose: bool) -> None:
+    def _show_config(self, dry_run: bool = False) -> None:
         """Display current configuration in a nice table."""
         table = Table(title="uzpy Configuration", show_header=True, header_style="bold magenta")
         table.add_column("Setting", style="cyan", no_wrap=True)
         table.add_column("Value", style="green")
 
-        table.add_row("Edit Path", str(edit_path))
-        table.add_row("Reference Path", str(ref_path))
-        table.add_row("Dry Run", "Yes" if dry_run else "No")
-        table.add_row("Verbose", "Yes" if verbose else "No")
+        table.add_row("Edit path", str(self.edit))
+        table.add_row("Reference path", str(self.ref))
+        table.add_row("Dry run", "Yes" if dry_run else "No")
+        table.add_row("Verbose", "Yes" if self.verbose else "No")
 
         console.print(table)
         console.print()
@@ -353,8 +361,116 @@ class UzpyCLI:
 
         console.print()
 
+    def clean(self, _dry_run: bool = False) -> None:
+        """
+        Clean all 'Used in:' sections from docstrings in the codebase.
+
+        Args:
+            _dry_run: Show what files would be cleaned without modifying them
+        """
+        # Configure logging
+        logger.remove()  # Remove default handler
+        level = "DEBUG" if self.verbose else "INFO"
+        logger.add(
+            sys.stderr, level=level, format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | {message}"
+        )
+
+        # Validate paths
+        edit_path = Path(self.edit)
+        if not edit_path.exists():
+            console.print(f"[red]Error: Edit path '{self.edit}' does not exist[/red]")
+            return
+
+        # Show configuration
+        self._show_clean_config(_dry_run)
+
+        # Discover files to clean
+        try:
+            exclude_list = self.xclude_patterns.split(",") if self.xclude_patterns else None
+            file_discovery = FileDiscovery(exclude_list)
+            files_to_clean = list(file_discovery.find_python_files(edit_path))
+        except Exception as e:
+            console.print(f"[red]Error discovering files: {e}[/red]")
+            return
+
+        if not files_to_clean:
+            console.print("[yellow]No Python files found to clean[/yellow]")
+            return
+
+        # Show discovered files summary
+        self._show_clean_discovery_summary(files_to_clean)
+
+        logger.info("Starting uzpy cleaning...")
+
+        if _dry_run:
+            logger.info("DRY RUN MODE - no files will be modified")
+
+        if not _dry_run:
+            # Apply cleaning
+            console.print("[blue]Cleaning docstrings...[/blue]")
+            try:
+                cleaner = LibCSTCleaner(edit_path.parent if edit_path.is_file() else edit_path)
+                clean_results = cleaner.clean_files(files_to_clean)
+
+                # Show cleaning summary
+                successful_cleanings = sum(1 for success in clean_results.values() if success)
+                total_files = len(clean_results)
+
+                if successful_cleanings > 0:
+                    console.print(f"[green]Successfully cleaned {successful_cleanings}/{total_files} files[/green]")
+                else:
+                    console.print("[yellow]No 'Used in:' sections found to clean[/yellow]")
+
+                # Show detailed results if verbose
+                if self.verbose and successful_cleanings > 0:
+                    self._show_clean_results(clean_results)
+
+            except Exception as e:
+                console.print(f"[red]Failed to apply cleaning: {e}[/red]")
+                if self.verbose:
+                    logger.exception("Cleaning failed")
+        else:
+            console.print("[green]Cleaning analysis complete - dry run mode[/green]")
+            console.print(f"[blue]Would clean {len(files_to_clean)} Python files[/blue]")
+
+    def _show_clean_config(self, dry_run: bool) -> None:
+        """Display current configuration for cleaning."""
+        table = Table(title="uzpy Clean Configuration", show_header=True, header_style="bold magenta")
+        table.add_column("Setting", style="cyan", no_wrap=True)
+        table.add_column("Value", style="green")
+
+        table.add_row("Edit path", str(self.edit))
+        table.add_row("Dry run", "Yes" if dry_run else "No")
+        table.add_row("Verbose", "Yes" if self.verbose else "No")
+
+        console.print(table)
+        console.print()
+
+    def _show_clean_discovery_summary(self, files_to_clean: list[Path]) -> None:
+        """Display summary of discovered files to clean."""
+        table = Table(title="Clean Discovery Summary", show_header=True, header_style="bold magenta")
+        table.add_column("Category", style="cyan", no_wrap=True)
+        table.add_column("Count", style="green", justify="right")
+
+        table.add_row("Python files to clean", str(len(files_to_clean)))
+
+        console.print(table)
+        console.print()
+
+    def _show_clean_results(self, clean_results: dict[str, bool]) -> None:
+        """Display detailed cleaning results."""
+        table = Table(title="Cleaning Results", show_header=True, header_style="bold magenta")
+        table.add_column("File", style="cyan")
+        table.add_column("Status", style="green")
+
+        for file_path, success in clean_results.items():
+            status = "Cleaned" if success else "No changes"
+            table.add_row(file_path, status)
+
+        console.print(table)
+        console.print()
+
 
 def cli() -> None:
-    cli = UzpyCLI()
     """Main entry point for the CLI."""
-    fire.Fire(cli.run)
+    fire.Fire(UzpyCLI)

@@ -12,10 +12,8 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 import jedi
-from jedi.api.classes import Name
 from loguru import logger
 
 from uzpy.parser import Construct, ConstructType
@@ -30,6 +28,8 @@ class JediAnalyzer:
 
     Used in:
     - analyzer/jedi_analyzer.py
+    - uzpy/analyzer/__init__.py
+    - uzpy/analyzer/hybrid_analyzer.py
     """
 
     def __init__(self, project_path: Path):
@@ -59,6 +59,7 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         usage_files = set()
 
@@ -215,6 +216,7 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Jedi")
         start_time = time.time()
@@ -242,6 +244,7 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - uzpy/analyzer/hybrid_analyzer.py
         """
         try:
             return {

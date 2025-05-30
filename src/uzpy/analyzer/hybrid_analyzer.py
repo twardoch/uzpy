@@ -12,7 +12,6 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 from loguru import logger
 
@@ -30,6 +29,8 @@ class HybridAnalyzer:
 
     Used in:
     - analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/__init__.py
+    - uzpy/cli.py
     """
 
     def __init__(self, project_path: Path):
@@ -80,6 +81,7 @@ class HybridAnalyzer:
 
         Used in:
         - analyzer/hybrid_analyzer.py
+        - uzpy/cli.py
         """
         jedi_results = set()
         rope_results = set()

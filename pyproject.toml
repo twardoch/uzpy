@@ -111,7 +111,7 @@ all = [
 # Entry points for command-line executables installed with the package.
 #------------------------------------------------------------------------------
 [project.scripts]
-uzpy = "uzpy.main:main"
+uzpy = "uzpy.__main__:cli"
 
 #------------------------------------------------------------------------------
 # BUILD SYSTEM CONFIGURATION
@@ -452,3 +452,5 @@ ban-relative-imports = 'all' # Ban all relative imports for consistency
     'TID252'
     # Allow relative imports in tests for convenience
 ]
+'src/uzpy/modifier/libcst_modifier.py' = ['N802'] # LibCST visitor methods use CapWords
+'src/uzpy/cli.py' = ['FBT001', 'FBT002'] # Fire CLI uses boolean flags

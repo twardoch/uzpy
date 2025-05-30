@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from uzpy.modifier.libcst_modifier import LibCSTModifier, DocstringModifier
+from uzpy.modifier.libcst_modifier import DocstringModifier, LibCSTModifier
 from uzpy.parser import Construct, ConstructType, Reference
 
 
@@ -24,7 +24,7 @@ def function_with_docstring():
 
 def function_with_usage_info():
     """Function with existing usage info.
-    
+
     Used in:
     - old/module.py
     - existing/file.py
@@ -33,10 +33,10 @@ def function_with_usage_info():
 
 class TestClass:
     """Class with docstring."""
-    
+
     def method_with_docstring(self):
         """Method docstring.
-        
+
         Args:
             self: The instance
         """
@@ -72,7 +72,10 @@ def sample_constructs_and_references(sample_python_file_with_docstrings):
             type=ConstructType.FUNCTION,
             file_path=sample_python_file_with_docstrings,
             line_number=7,
-            docstring="Function with existing usage info.\n    \n    Used in:\n    - old/module.py\n    - existing/file.py\n    ",
+            docstring=(
+                "Function with existing usage info.\n    \n    Used in:\n    "
+                "- old/module.py\n    - existing/file.py\n    "
+            ),
             full_name="function_with_usage_info",
         ),
         Construct(
@@ -141,7 +144,7 @@ def test_extract_existing_usage_paths():
 
     # Test docstring with existing usage
     content = """Function description.
-    
+
     Used in:
     - old/path1.py
     - old/path2.py
@@ -173,7 +176,7 @@ def test_update_docstring_content_with_existing_usage():
     modifier = DocstringModifier({}, Path("/fake/project"))
 
     current_docstring = '''"""Function with existing usage.
-    
+
     Used in:
     - old/module.py
     """'''
@@ -248,8 +251,8 @@ def test_modify_file_integration(sample_python_file_with_docstrings, sample_cons
     modifier = LibCSTModifier(project_root)
 
     # Read original content
-    with open(sample_python_file_with_docstrings, "r") as f:
-        original_content = f.read()
+    with open(sample_python_file_with_docstrings) as f:
+        f.read()
 
     # Modify the file
     success = modifier.modify_file(sample_python_file_with_docstrings, usage_map)
@@ -257,7 +260,7 @@ def test_modify_file_integration(sample_python_file_with_docstrings, sample_cons
     assert success is True
 
     # Read modified content
-    with open(sample_python_file_with_docstrings, "r") as f:
+    with open(sample_python_file_with_docstrings) as f:
         modified_content = f.read()
 
     # Should have added usage information
@@ -293,7 +296,7 @@ def test_indentation_preservation():
     # Test with indented docstring
     current_docstring = '''"""
         Function with indented docstring.
-        
+
         Args:
             param: Description
         """'''
