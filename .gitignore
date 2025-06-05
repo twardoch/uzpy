@@ -316,3 +316,5 @@ _private
 VERSION.txt
 # SpecStory explanation file
 .specstory/.what-is-this.md
+
+testdata
