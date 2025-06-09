@@ -35,7 +35,11 @@ class PyrightAnalyzer:
             project_root: Root directory of the project
             exclude_patterns: Patterns to exclude from analysis
         """
-        self.project_root = project_root
+        # Handle case where project_root is a file instead of directory
+        if project_root.is_file():
+            self.project_root = project_root.parent
+        else:
+            self.project_root = project_root
         self.exclude_patterns = exclude_patterns or []
 
         # Check if pyright is available
