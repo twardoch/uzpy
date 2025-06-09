@@ -1,46 +1,46 @@
 # uzpy
 
-**A production-ready Python tool that automatically analyzes code usage patterns and updates docstrings with "Used in:" documentation.**
+**A Python tool that automatically analyzes code usage patterns and updates docstrings with "Used in:" documentation.**
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Production Ready](https://img.shields.io/badge/status-production%20ready-green.svg)]()
+[![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)]()
 
-`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. This helps developers understand code dependencies and maintain better documentation.
+`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. It helps developers understand code dependencies and maintain better documentation.
 
 ## ✨ Features
 
-- **🔍 Smart Analysis**: Uses Tree-sitter for fast, error-resilient Python parsing
-- **🎯 Accurate References**: Combines Rope and Jedi for comprehensive usage detection  
-- **📝 Safe Modifications**: Preserves code formatting using LibCST with lossless editing
-- **🛡️ Error Recovery**: Graceful handling of syntax errors and edge cases
+- **🔍 Fast Parsing**: Uses Tree-sitter for efficient, error-resilient Python parsing
+- **🎯 Hybrid Analysis**: Combines Rope and Jedi for comprehensive usage detection with fallback strategies
+- **📝 Safe Modifications**: Preserves all code formatting using LibCST with lossless editing
+- **🛡️ Error Recovery**: Graceful handling of syntax errors, analysis failures, and edge cases
+- **🧹 Cleanup Support**: Clean command to remove all "Used in:" sections
 
 ## 🚀 Installation
 
 ```bash
-# Install dependencies with uv (recommended)
+# Install with uv (recommended)
 uv venv && source .venv/bin/activate
 uv pip install -e .
 
 # Or with pip
-pip install tree-sitter tree-sitter-python rope jedi libcst fire rich loguru pathspec
 pip install -e .
 ```
 
 ## 📖 Quick Start
 
 ```bash
-# Analyze and update docstrings in a project
-python -m uzpy -e src/myproject/
+# Analyze and update docstrings in current directory
+python -m uzpy run
 
-# Preview changes without modification  
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
 
-# Analyze a single file
-python -m uzpy -e src/myproject/module.py --dry-run
+# Preview changes without modification (dry-run mode)
+python -m uzpy test --edit src/myproject/ --verbose
 
-# Get help
-python -m uzpy --help
+# Remove all "Used in:" sections
+python -m uzpy clean --edit src/myproject/
 ```
 
 ## 💡 Usage Examples
@@ -48,52 +48,52 @@ python -m uzpy --help
 ### Basic Analysis
 
 ```bash
-# Analyze and update docstrings in a project directory
-python -m uzpy -e src/myproject/
+# Analyze current directory
+python -m uzpy run
 
-# Analyze a single file
-python -m uzpy -e src/myproject/utils.py
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
+
+# Analyze with custom exclusions
+python -m uzpy run --edit src/ --xclude_patterns tests,migrations
 ```
 
 ### Preview Mode
 
 ```bash
-# See what would change without modifying files
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Dry run to see what would change
+python -m uzpy test --edit src/myproject/ --verbose
 
-# Get detailed analysis information
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Test specific file
+python -m uzpy test --edit src/utils.py --verbose
 ```
 
-### Real-World Examples
+### Cleanup
 
 ```bash
-# Analyze your entire src directory
-python -m uzpy -e src/ --verbose
+# Remove all "Used in:" sections
+python -m uzpy clean --edit src/
 
-# Check a specific module before refactoring
-python -m uzpy -e src/core/database.py --dry-run
-
-# Update documentation for API modules
-python -m uzpy -e src/api/ --verbose
+# Clean with verbose output
+python -m uzpy clean --edit src/ --verbose
 ```
 
 ## 🔧 How It Works
 
-uzpy uses a sophisticated four-phase pipeline:
+uzpy uses a four-phase pipeline:
 
-1. **🔍 Discovery Phase**: Finds all Python files while respecting gitignore patterns
-2. **📊 Parsing Phase**: Uses Tree-sitter to extract functions, classes, and methods with their docstrings
-3. **🔗 Analysis Phase**: Employs a hybrid approach combining Rope and Jedi to find usage patterns
-4. **📝 Modification Phase**: Uses LibCST to safely update docstrings while preserving formatting
+1. **🔍 Discovery Phase**: Finds Python files using pathspec while respecting gitignore patterns
+2. **📊 Parsing Phase**: Uses Tree-sitter to extract functions, classes, methods, and modules with their docstrings
+3. **🔗 Analysis Phase**: Employs hybrid Rope+Jedi analysis with intelligent strategy selection
+4. **📝 Modification Phase**: Uses LibCST to safely update docstrings while preserving all formatting
 
 ### Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
-│   (gitignore +   │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
-│   pathspec)      │    │  (AST + constructs)│   │  (usage finding)│    │   updates)      │
+│   (pathspec +    │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
+│   gitignore)     │    │  (AST extraction)│    │  (usage finding)│    │   updates)      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -114,84 +114,67 @@ def calculate_total(items):
     """Calculate the total price of items.
 
     Used in:
-    - src/main.py
     - src/billing/invoice.py
-    - tests/test_calculations.py"""
+    - tests/test_calculations.py
+    """
     return sum(item.price for item in items)
-```
-
-## Example Output
-
-When you run uzpy, you'll see beautiful terminal output like this:
-
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ uzpy Configuration     ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Edit Path              │ src/myproject/     │
-│ Reference Path         │ .                  │
-│ Dry Run                │ No                 │
-│ Verbose                │ Yes                │
-└────────────────────────┴────────────────────┘
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ File Discovery Summary         ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Edit Files      │ 23  │ utils.py, models.py, ... │
-│ Reference Files │ 156 │ main.py, tests.py, ...   │
-└─────────────────┴─────┴──────────────────────────┘
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Construct Parsing Summary        ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Module   │ 23   │ 12/23 │
-│ Class    │ 45   │ 31/45 │
-│ Function │ 128  │ 89/128│
-│ Method   │ 267  │ 156/267│
-│ Total    │ 463  │ 288/463│
-└──────────┴──────┴───────┘
 ```
 
 ## 🔧 CLI Reference
 
-### Main Command
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `run` | Analyze and update docstrings (default behavior) |
+| `test` | Run analysis in dry-run mode without modifying files |
+| `clean` | Remove all "Used in:" sections from docstrings |
+
+### Constructor Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `edit` | str/Path | Path to analyze and modify | current directory |
+| `ref` | str/Path | Reference path for usage search | same as edit |
+| `verbose` | bool | Enable detailed logging | False |
+| `xclude_patterns` | str/list | Exclude patterns (comma-separated) | None |
+| `methods_include` | bool | Include method definitions | True |
+| `classes_include` | bool | Include class definitions | True |
+| `functions_include` | bool | Include function definitions | True |
+
+### Examples
 
 ```bash
-python -m uzpy [OPTIONS]
+# Basic usage
+python -m uzpy run --edit src/
+
+# With custom options
+python -m uzpy run --edit src/ --ref . --verbose --xclude_patterns tests,migrations
+
+# Dry run mode
+python -m uzpy test --edit src/ --verbose
+
+# Clean docstrings
+python -m uzpy clean --edit src/
 ```
 
-### Options
-
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--edit` | `-e` | Path to analyze and modify | Required |
-| `--ref` | `-r` | Reference path to search for usage | Same as edit |
-| `--verbose` | `-v` | Enable detailed logging | `False` |
-| `--dry-run` | | Show changes without modifying files | `False` |
-| `--methods-include` | | Include method definitions | `True` |
-| `--classes-include` | | Include class definitions | `True` |
-| `--functions-include` | | Include function definitions | `True` |
-| `--exclude-patterns` | Comma-separated glob patterns to exclude | None |
-
 ## 🛠️ Development
-
-uzpy is built with modern Python practices and comprehensive testing.
 
 ### Setup Development Environment
 
 ```bash
-# Clone the repository  
-git clone https://github.com/yourusername/uzpy.git
+# Clone and setup
+git clone https://github.com/twardoch/uzpy.git
 cd uzpy
 
 # Setup with uv (recommended)
 uv venv && source .venv/bin/activate
-uv pip install -e .
+uv pip install -e .[dev,test]
 
 # Or with pip
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e .
+pip install -e .[dev,test]
 ```
 
 ### Development Workflow
@@ -200,27 +183,72 @@ pip install -e .
 # Run tests
 python -m pytest
 
-# Lint and format code
+# Lint and format
 ruff check --fix
 ruff format
 
-# Full development pipeline (from CLAUDE.md)
-fd -e py -x autoflake {}; fd -e py -x pyupgrade --py311-plus {}; fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}; fd -e py -x ruff format --respect-gitignore --target-version py311 {}; python -m pytest;
+# Full development pipeline
+fd -e py -x autoflake {}; fd -e py -x pyupgrade --py312-plus {}; fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}; fd -e py -x ruff format --respect-gitignore --target-version py312 {}; python -m pytest;
 ```
 
 ### Architecture Overview
 
-uzpy is designed with modularity and extensibility in mind:
+uzpy is designed with clear separation of concerns:
 
-- **`src/uzpy/cli.py`** - Command-line interface using Fire and Rich
+- **`src/uzpy/cli.py`** - Fire-based command-line interface
 - **`src/uzpy/discovery.py`** - File discovery with gitignore support  
-- **`src/uzpy/parser/`** - Tree-sitter based Python parsing
-- **`src/uzpy/analyzer/`** - Hybrid reference analysis (Rope + Jedi)
-- **`src/uzpy/modifier/`** - LibCST-based safe code modification
+- **`src/uzpy/parser/tree_sitter_parser.py`** - Tree-sitter based Python parsing
+- **`src/uzpy/analyzer/hybrid_analyzer.py`** - Hybrid reference analysis combining Rope and Jedi
+- **`src/uzpy/modifier/libcst_modifier.py`** - LibCST-based safe code modification
+- **`src/uzpy/pipeline.py`** - Main orchestration pipeline
+- **`src/uzpy/types.py`** - Core data structures
+
+## 📋 Requirements
+
+### System Requirements
+
+- **Python**: 3.10 or higher
+- **Operating Systems**: Linux, macOS, Windows
+
+### Dependencies
+
+Core dependencies are automatically installed:
+
+- **tree-sitter** & **tree-sitter-python** - Fast AST parsing
+- **rope** - Accurate code analysis
+- **jedi** - Fast symbol resolution
+- **libcst** - Safe code modification
+- **fire** - CLI generation
+- **loguru** - Logging
+- **pathspec** - Gitignore pattern matching
+- **rich** - Terminal output
+
+## ⚠️ Current Limitations
+
+1. **Basic CLI**: Simple Fire-based interface (no fancy Rich tables)
+2. **No Configuration Files**: No `.uzpy.toml` support yet
+3. **No Performance Metrics**: No benchmarking data available
+4. **Limited Error Context**: Some analysis failures may not provide detailed context
+5. **No Watch Mode**: No real-time file monitoring
+
+## 🚧 Future Enhancements
+
+- **Enhanced CLI**: Rich-based terminal output with progress bars and tables
+- **Configuration Support**: `.uzpy.toml` configuration files
+- **Performance Optimization**: Benchmarking and optimization for large codebases
+- **Watch Mode**: Real-time file monitoring and updates
+- **Plugin System**: Extensible architecture for custom analyzers
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Guidelines
+
+1. Follow the existing code style (Ruff configuration)
+2. Add tests for new functionality
+3. Update documentation as needed
+4. Ensure all tests pass before submitting
 
 ## 📄 License
 
@@ -231,6 +259,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Tree-sitter** for fast, error-resilient parsing
 - **Rope** for accurate cross-file analysis  
 - **Jedi** for fast symbol resolution
-- **LibCST** for safe code modification
-- **Rich** for beautiful terminal output
+- **LibCST** for safe code modification with formatting preservation
+- **Fire** for simple CLI generation
+- **The Python community** for excellent tooling and libraries
 

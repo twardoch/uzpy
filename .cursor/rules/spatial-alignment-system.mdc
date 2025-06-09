@@ -1,42 +1,22 @@
 ---
-description: Specifications for spatial alignment and template matching systems used for video processing and position tracking
-globs: src/alignment/**/*.py,src/tracking/**/*.py,src/video/**/*.py
+description: Template matching system for aligning and correlating spatial video content
+globs: src/uzpy/discovery.py,src/uzpy/pipeline.py,src/uzpy/analyzer/**
 alwaysApply: false
 ---
 
 
 # spatial-alignment-system
 
-Based on the provided specification, there is very limited direct information about the spatial alignment system. However, the following high-level structure can be documented:
+The specification does not directly address a spatial alignment system or template matching functionality. While the codebase contains analyzers and pipelines, they are focused on Python code analysis rather than spatial/video processing.
 
-### Analyzer Components
+The closest related components are:
+- The hybrid analysis system combining multiple tools (Rope and Jedi) for code reference tracking
+- Pipeline processing for sequential operations
+- Discovery mechanisms for traversing and processing files
 
-The project includes analyzer components that may relate to spatial alignment:
+However, these components do not implement spatial alignment or video template matching capabilities.
 
-- Hybrid analysis approach for tracking and correlating elements
-- Pattern detection and position resolution capabilities
-
-File path: `src/uzpy/analyzer/hybrid_analyzer.py`
-
-### Discovery System 
-
-A discovery mechanism exists that could support spatial element identification:
-
-- Custom discovery logic for identifying and categorizing elements
-- Configurable pattern matching and exclusion rules
-
-File path: `src/uzpy/discovery.py`
-
-### Validation Framework
-
-The system includes validation capabilities that may apply to spatial alignment:
-
-- Custom validation rules for enforcing spatial constraints
-- Pattern-based validation for element positioning
-
-File path: `src/uzpy/validator.py`
-
-While the specification does not provide detailed information specifically about spatial alignment algorithms or template matching, these structural components suggest the foundation for such functionality exists within the system architecture.
+Business Logic Score: 0 (No spatial alignment functionality documented)
 
 $END$
 

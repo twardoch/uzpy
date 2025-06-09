@@ -1,27 +1,39 @@
 ---
-description: Specification for implementing perceptual hashing algorithms and frame fingerprinting logic
-globs: src/uzpy/analyzer/**,src/uzpy/parser/**
+description: Technical specification for Python construct analysis and usage tracking system
+globs: src/uzpy/analyzer/**,src/uzpy/parser/**,src/uzpy/modifier/**
 alwaysApply: false
 ---
 
 
 # frame-fingerprinting-algorithm
 
-The provided specification does not contain direct information about frame fingerprinting algorithms or perceptual hashing implementations. While the source materials cover extensive details about code analysis and parsing, they do not address frame fingerprinting functionality.
+## Core Components
 
-The closest related functionality appears to be in the analyzer components:
+The frame fingerprinting system consists of three main components that work together to analyze and track code constructs:
 
-### Code Analysis Pipeline
-- Location: `src/uzpy/analyzer/hybrid_analyzer.py`
-- Implements a hybrid analysis approach for code pattern recognition
-- Uses pattern matching and symbol resolution for identifying code constructs
+### Construct Extraction (Importance: 95)
+Implemented in the TreeSitterParser class, this component:
+- Uses Tree-sitter queries to identify Python constructs (functions, classes, methods)
+- Extracts associated docstrings and metadata
+- Handles incremental parsing with error recovery
 
-### Parser Implementation 
-- Location: `src/uzpy/parser/tree_sitter_parser.py`
-- Provides parsing capabilities that could potentially be adapted for frame analysis
-- Includes pattern matching functionality using Tree-sitter queries
+### Usage Analysis (Importance: 90)
+The HybridAnalyzer implements a dual-engine approach:
+- Combines Rope and Jedi analyzers for comprehensive reference detection
+- Employs confidence scoring to resolve conflicting results
+- Maintains accurate scope resolution using AST and symtable integration
 
-While these components provide a foundation for pattern analysis, they are not currently implemented for frame fingerprinting or perceptual hashing purposes.
+### Reference Management (Importance: 85)
+Uses specialized data structures for tracking code relationships:
+- Hybrid inverted indices for quick symbol lookups
+- Graph representations for complex dependency queries
+- Cached AST storage with timestamp-based invalidation
+
+## Relevant File Paths
+- `src/uzpy/parser/tree_sitter_parser.py`
+- `src/uzpy/analyzer/hybrid_analyzer.py`
+- `src/uzpy/analyzer/jedi_analyzer.py`
+- `src/uzpy/analyzer/rope_analyzer.py`
 
 $END$
 

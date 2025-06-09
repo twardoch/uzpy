@@ -339,6 +339,369 @@ __version__ = "0.1.0"
 __author__ = "Adam Twardoch"
 </file>
 
+<file path="tests/__init__.py">
+# this_file: tests/__init__.py
+
+"""Test suite for uzpy."""
+</file>
+
+<file path=".cursorindexingignore">
+# Don't index SpecStory auto-save files, but allow explicit context inclusion via @ references
+.specstory/**
+</file>
+
+<file path=".pre-commit-config.yaml">
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+        args: [--respect-gitignore]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+      - id: debug-statements
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+</file>
+
+<file path="cleanup.sh">
+#!/usr/bin/env bash
+
+python -m uzpy run -e src
+fd -e py -x autoflake {}
+fd -e py -x pyupgrade --py311-plus {}
+fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}
+fd -e py -x ruff format --respect-gitignore --target-version py311 {}
+repomix -i varia,.specstory,AGENT.md,CLAUDE.md,PLAN.md,llms.txt,.cursorrules -o llms.txt .
+python -m pytest
+</file>
+
+<file path="LICENSE">
+MIT License
+
+Copyright (c) 2025 Adam Twardoch
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+</file>
+
+<file path="package.toml">
+# Package configuration
+[package]
+include_cli = true        # Include CLI boilerplate
+include_logging = true    # Include logging setup
+use_pydantic = true      # Use Pydantic for data validation
+use_rich = true          # Use Rich for terminal output
+
+[features]
+mkdocs = false           # Enable MkDocs documentation
+vcs = true              # Initialize Git repository
+github_actions = true   # Add GitHub Actions workflows
+</file>
+
+<file path="SPEC.md">
+# uzpy Technical Specification
+
+**Version**: 0.1.0  
+**Status**: Beta - Functional Implementation  
+**Last Updated**: January 2025
+
+## 1. Overview
+
+uzpy is a Python static analysis tool that automatically tracks cross-file usage patterns and updates docstrings with "Used in:" documentation. It combines Tree-sitter parsing, hybrid Rope+Jedi analysis, and LibCST code modification to provide accurate, safe docstring updates.
+
+## 2. Core Requirements
+
+### 2.1. Functional Requirements
+
+1. **Code Discovery**: Discover Python files while respecting `.gitignore` patterns and custom exclusions
+2. **Construct Extraction**: Parse Python code to extract functions, classes, methods, and modules with their existing docstrings
+3. **Usage Analysis**: Find where each construct is used across the codebase using hybrid analysis  
+4. **Docstring Modification**: Update docstrings with "Used in:" sections while preserving all formatting
+5. **Error Recovery**: Handle syntax errors, import failures, and analysis errors gracefully
+
+### 2.2. Non-Functional Requirements
+
+1. **Safety**: Zero data loss during code modification with full formatting preservation
+2. **Compatibility**: Support Python 3.10+ codebases (actual minimum requirement)
+3. **Reliability**: Graceful degradation when analysis tools fail
+4. **Maintainability**: Clean modular architecture with separation of concerns
+
+## 3. Architecture
+
+### 3.1. High-Level Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
+│   (pathspec +    │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
+│   gitignore)     │    │  (AST extraction)│    │  (usage finding)│    │   updates)      │
+└─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+### 3.2. Component Implementation
+
+#### 3.2.1. CLI Interface (`cli.py`)
+- **Technology**: Python Fire for automatic CLI generation
+- **Features**:
+  - `run` command for analysis and modification
+  - `clean` command for removing "Used in:" sections
+  - `test` command for dry-run mode
+  - Simple logging with loguru
+  - Basic error handling and user feedback
+
+#### 3.2.2. File Discovery (`discovery.py`)
+- **Technology**: pathlib + pathspec (gitignore parsing)
+- **Features**:
+  - Python file discovery with glob patterns
+  - `.gitignore` pattern respect with default exclusions
+  - Custom exclusion patterns support
+  - Efficient directory traversal with error handling
+  - File statistics reporting
+
+#### 3.2.3. Tree-sitter Parser (`parser/tree_sitter_parser.py`)
+- **Technology**: tree-sitter + tree-sitter-python
+- **Features**:
+  - Fast AST parsing with error recovery
+  - Extract functions, classes, methods, and modules
+  - Docstring detection and normalization
+  - Fully qualified name construction
+  - Line number tracking for each construct
+
+#### 3.2.4. Hybrid Analyzer (`analyzer/hybrid_analyzer.py`)
+- **Technology**: Rope + Jedi with fallback strategies
+- **Components**:
+  - `rope_analyzer.py` - Accurate cross-file analysis
+  - `jedi_analyzer.py` - Fast symbol resolution
+  - `hybrid_analyzer.py` - Combines both with intelligent strategies
+- **Features**:
+  - Multiple analysis strategies (full_hybrid, jedi_primary, rope_only)
+  - Reference deduplication and merging
+  - Graceful fallback when analyzers fail
+
+#### 3.2.5. LibCST Modifier (`modifier/libcst_modifier.py`)
+- **Technology**: LibCST for concrete syntax tree manipulation
+- **Features**:
+  - Safe docstring modification preserving all formatting
+  - "Used in:" section generation and management
+  - Existing usage information merging
+  - Relative path generation for references
+  - Complete formatting preservation
+
+## 4. Data Models
+
+### 4.1. Core Data Structures
+
+```python
+@dataclass
+class Construct:
+    """Represents a Python construct with metadata"""
+    name: str                    # Construct name
+    type: ConstructType         # function, class, method, module
+    file_path: Path            # Source file location
+    line_number: int           # Line number (1-based)
+    docstring: str | None      # Current docstring content
+    full_name: str            # Fully qualified name
+    node: Node | None         # Tree-sitter node reference
+
+@dataclass  
+class Reference:
+    """Represents a usage reference to a construct"""
+    file_path: Path            # File where construct is used
+    line_number: int           # Line number of usage
+    column_number: int = 0     # Column number of usage
+    context: str = ""          # Surrounding code context
+```
+
+### 4.2. Pipeline Implementation
+
+```python
+def run_analysis_and_modification(
+    edit_path: Path,
+    ref_path: Path,
+    exclude_patterns: list[str] | None,
+    dry_run: bool,
+) -> dict[Construct, list[Reference]]:
+    # Phase 1: Discovery
+    edit_files, ref_files = discover_files(edit_path, ref_path, exclude_patterns)
+    
+    # Phase 2: Parsing
+    parser = TreeSitterParser()
+    all_constructs = []
+    for edit_file in edit_files:
+        constructs = parser.parse_file(edit_file)
+        all_constructs.extend(constructs)
+    
+    # Phase 3: Analysis
+    analyzer = HybridAnalyzer(ref_path, exclude_patterns)
+    usage_results = {}
+    for construct in all_constructs:
+        references = analyzer.find_usages(construct, ref_files)
+        usage_results[construct] = references
+    
+    # Phase 4: Modification
+    if not dry_run:
+        modifier = LibCSTModifier(project_root)
+        modifier.modify_files(usage_results)
+    
+    return usage_results
+```
+
+## 5. CLI Reference
+
+### 5.1. Actual Command Line Interface
+
+```bash
+python -m uzpy [COMMAND] [OPTIONS]
+```
+
+### 5.2. Commands
+
+| Command | Description |
+|---------|-------------|
+| `run` | Analyze and update docstrings (default) |
+| `clean` | Remove all "Used in:" sections |
+| `test` | Run in dry-run mode |
+
+### 5.3. Constructor Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `edit` | str/Path | Path to analyze and modify | current directory |
+| `ref` | str/Path | Reference path for usage search | same as edit |
+| `verbose` | bool | Enable detailed logging | False |
+| `xclude_patterns` | str/list | Exclude patterns (comma-separated) | None |
+| `methods_include` | bool | Include method definitions | True |
+| `classes_include` | bool | Include class definitions | True |
+| `functions_include` | bool | Include function definitions | True |
+
+### 5.4. Usage Examples
+
+```bash
+# Basic usage - analyze current directory
+python -m uzpy run
+
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
+
+# Dry run with verbose output
+python -m uzpy test --edit src/ --verbose
+
+# Clean all "Used in:" sections
+python -m uzpy clean --edit src/
+```
+
+## 6. Dependencies
+
+### 6.1. Core Dependencies (from pyproject.toml)
+
+- **Python**: 3.10+ (actual minimum requirement)
+- **tree-sitter**: >=0.20.0 (AST parsing)
+- **tree-sitter-python**: >=0.20.0 (Python grammar)
+- **rope**: >=1.7.0 (code analysis)
+- **jedi**: >=0.19.0 (symbol resolution)
+- **libcst**: >=1.0.0 (code modification)
+- **fire**: >=0.5.0 (CLI generation)
+- **rich**: >=13.0.0 (terminal output)
+- **loguru**: >=0.7.0 (logging)
+- **pathspec**: >=0.11.0 (gitignore parsing)
+
+## 7. Implementation Details
+
+### 7.1. Error Handling Strategy
+
+The tool implements graceful degradation at multiple levels:
+
+1. **Parse Errors**: Continue with partial AST if Tree-sitter encounters syntax errors
+2. **Analyzer Failures**: Fall back from Rope to Jedi or text-based search
+3. **Modification Errors**: Log errors and continue with other files
+4. **File Access Errors**: Skip inaccessible files with warnings
+
+### 7.2. Analysis Strategies
+
+The hybrid analyzer uses different strategies based on the situation:
+
+- **full_hybrid**: Use both Rope and Jedi for small codebases (<50 constructs)
+- **jedi_primary**: Use Jedi first, verify complex cases with Rope
+- **rope_only**: Fall back when Jedi fails
+
+### 7.3. Docstring Update Behavior
+
+The tool automatically:
+- Preserves all existing formatting and indentation
+- Merges existing "Used in:" sections with new findings
+- Excludes self-references (same file)
+- Uses relative paths from project root
+- Maintains proper docstring quote styles
+
+## 8. Testing
+
+The project includes comprehensive tests:
+
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Full pipeline testing
+- **Discovery Tests**: File discovery with various patterns
+- **Parser Tests**: AST extraction and construct identification
+- **Modifier Tests**: Docstring updating with formatting preservation
+
+## 9. Limitations
+
+1. **No Configuration Files**: No support for `.uzpy.toml` or similar configuration
+2. **Basic CLI**: Simple Fire-based CLI without Rich table outputs
+3. **No Performance Benchmarks**: No measured performance metrics
+4. **Limited Error Recovery**: Some edge cases may not be handled gracefully
+5. **No Watch Mode**: No real-time file monitoring
+
+## 10. Future Enhancements
+
+Based on the current implementation, planned improvements include:
+
+1. **Enhanced CLI**: Rich-based terminal output with progress bars and tables
+2. **Configuration Support**: `.uzpy.toml` configuration files
+3. **Performance Optimization**: Benchmarking and optimization for large codebases
+4. **Advanced Features**: Watch mode, plugin system, multi-language support
+
+---
+
+This specification reflects the actual implementation as of January 2025. All documented features are functional and tested.
+</file>
+
+<file path="src/uzpy/__main__.py">
+# this_file: src/uzpy/__main__.py
+
+"""
+Main entry point for the uzpy package.
+"""
+
+from uzpy.cli import cli
+
+if __name__ == "__main__":
+    cli()
+</file>
+
 <file path="src/uzpy/pipeline.py">
 # this_file: src/uzpy/pipeline.py
 
@@ -692,542 +1055,43 @@ class Reference:
     context: str = ""
 </file>
 
-<file path="tests/__init__.py">
-# this_file: tests/__init__.py
-
-"""Test suite for uzpy."""
-</file>
-
-<file path=".cursorindexingignore">
-# Don't index SpecStory auto-save files, but allow explicit context inclusion via @ references
-.specstory/**
-</file>
-
-<file path=".pre-commit-config.yaml">
-repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.4
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-        args: [--respect-gitignore]
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: check-yaml
-      - id: check-toml
-      - id: check-added-large-files
-      - id: debug-statements
-      - id: check-case-conflict
-      - id: mixed-line-ending
-        args: [--fix=lf]
-</file>
-
-<file path="cleanup.sh">
-#!/usr/bin/env bash
-
-python -m uzpy run -e src
-fd -e py -x autoflake {}
-fd -e py -x pyupgrade --py311-plus {}
-fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}
-fd -e py -x ruff format --respect-gitignore --target-version py311 {}
-repomix -i varia,.specstory,AGENT.md,CLAUDE.md,PLAN.md,llms.txt,.cursorrules -o llms.txt .
-python -m pytest
-</file>
-
-<file path="LICENSE">
-MIT License
-
-Copyright (c) 2025 Adam Twardoch
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-</file>
-
-<file path="package.toml">
-# Package configuration
-[package]
-include_cli = true        # Include CLI boilerplate
-include_logging = true    # Include logging setup
-use_pydantic = true      # Use Pydantic for data validation
-use_rich = true          # Use Rich for terminal output
-
-[features]
-mkdocs = false           # Enable MkDocs documentation
-vcs = true              # Initialize Git repository
-github_actions = true   # Add GitHub Actions workflows
-</file>
-
-<file path="SPEC.md">
-# uzpy Technical Specification
-
-**Version**: 1.0.0  
-**Status**: Production Ready  
-**Last Updated**: December 2024
-
-## Overview
-
-uzpy is a Python static analysis tool that automatically tracks cross-file usage patterns and updates docstrings with "Used in:" documentation. It combines modern parsing technologies with proven static analysis techniques to provide accurate, safe code modification.
-
-## Core Requirements
-
-### Functional Requirements
-
-1. **Code Discovery**: Efficiently discover Python files while respecting `.gitignore` patterns
-2. **Construct Extraction**: Parse Python code to extract functions, classes, methods, and modules
-3. **Usage Analysis**: Find where each construct is used across the codebase  
-4. **Docstring Modification**: Update docstrings with usage information while preserving formatting
-5. **Error Recovery**: Handle syntax errors and partial analysis gracefully
-
-### Non-Functional Requirements
-
-1. **Performance**: Process 5,000-10,000 lines of code per second
-2. **Accuracy**: 95%+ accuracy for static imports, 70-80% for dynamic features
-3. **Safety**: Zero data loss during code modification
-4. **Compatibility**: Support Python 3.11+ codebases
-5. **Maintainability**: Modular architecture with clear separation of concerns
-
-## Architecture
-
-### High-Level Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
-│   (gitignore +   │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
-│   pathspec)      │    │  (AST + constructs)│   │  (usage finding)│    │   updates)      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### Component Breakdown
-
-#### 1. CLI Interface (`cli.py`)
-- **Technology**: Python Fire + Rich Terminal UI
-- **Responsibilities**:
-  - Command-line argument parsing and validation
-  - User interaction and progress reporting
-  - Error handling and user feedback
-  - Configuration management
-
-#### 2. File Discovery (`discovery.py`)
-- **Technology**: pathlib + pathspec (gitignore parsing)
-- **Responsibilities**:
-  - Python file discovery with glob patterns
-  - Gitignore pattern respect
-  - Exclusion pattern handling
-  - Path normalization and validation
-
-#### 3. Tree-sitter Parser (`parser/tree_sitter_parser.py`)
-- **Technology**: Tree-sitter + tree-sitter-python
-- **Responsibilities**:
-  - Fast AST parsing with error recovery
-  - Construct extraction (functions, classes, methods, modules)
-  - Docstring detection and extraction
-  - Line number and position tracking
-
-#### 4. Hybrid Analyzer (`analyzer/`)
-- **Technology**: Rope + Jedi libraries
-- **Components**:
-  - `rope_analyzer.py` - Accurate cross-file reference finding
-  - `jedi_analyzer.py` - Fast symbol resolution and caching
-  - `hybrid_analyzer.py` - Combines both with fallback mechanisms
-- **Responsibilities**:
-  - Cross-file usage detection
-  - Import resolution
-  - Symbol resolution with context
-  - Confidence scoring for matches
-
-#### 5. LibCST Modifier (`modifier/libcst_modifier.py`)
-- **Technology**: LibCST (Concrete Syntax Tree)
-- **Responsibilities**:
-  - Safe docstring modification
-  - Formatting preservation
-  - Comment preservation
-  - Existing usage information parsing and merging
-
-## Data Models
-
-### Core Data Structures
-
-```python
-@dataclass
-class Construct:
-    """Represents a Python construct (function, class, method, etc.)"""
-    name: str                    # Construct name
-    type: ConstructType         # function, class, method, module
-    file_path: Path            # Source file location
-    line_number: int           # Line number in source
-    docstring: str | None      # Current docstring content
-    parent_class: str | None   # For methods, the containing class
-
-@dataclass  
-class Reference:
-    """Represents a usage reference to a construct"""
-    file_path: Path            # File where construct is used
-    line_number: int           # Line number of usage
-    context: str               # Surrounding code context
-    confidence: float          # Confidence score (0.0-1.0)
-    reference_type: ReferenceType  # call, import, inheritance, etc.
-
-class UsageMap:
-    """Maps constructs to their usage references"""
-    data: dict[Construct, list[Reference]]
-```
-
-### File Processing Pipeline
-
-```python
-class AnalysisPipeline:
-    def run(self, edit_path: Path, ref_path: Path) -> UsageMap:
-        # Phase 1: Discovery
-        edit_files = self.discover_files(edit_path)
-        ref_files = self.discover_files(ref_path)
-        
-        # Phase 2: Parsing
-        constructs = self.parse_constructs(edit_files)
-        
-        # Phase 3: Analysis  
-        usage_map = self.analyze_usage(constructs, ref_files)
-        
-        # Phase 4: Modification
-        self.update_docstrings(usage_map)
-        
-        return usage_map
-```
-
-## Technology Stack Details
-
-### Tree-sitter Parser Configuration
-
-```python
-# Tree-sitter query for function definitions
-FUNCTION_QUERY = """
-(function_definition
-  name: (identifier) @function_name
-  body: (block
-    (expression_statement
-      (string) @docstring)?))
-"""
-
-# Tree-sitter query for class definitions  
-CLASS_QUERY = """
-(class_definition
-  name: (identifier) @class_name
-  body: (block
-    (expression_statement
-      (string) @docstring)?))
-"""
-```
-
-### Hybrid Analysis Strategy
-
-```python
-class HybridAnalyzer:
-    def find_usages(self, construct: Construct, ref_files: list[Path]) -> list[Reference]:
-        # Primary: Fast Jedi analysis
-        jedi_refs = self.jedi_analyzer.find_references(construct, ref_files)
-        
-        # Secondary: Accurate Rope analysis for verification
-        rope_refs = self.rope_analyzer.find_references(construct, ref_files)
-        
-        # Merge and deduplicate with confidence scoring
-        return self.merge_references(jedi_refs, rope_refs)
-```
-
-### LibCST Docstring Modification
-
-```python
-class DocstringModifier(cst.CSTTransformer):
-    def leave_FunctionDef(self, node: cst.FunctionDef, updated_node: cst.FunctionDef):
-        # Extract existing docstring
-        current_docstring = self.extract_docstring(node)
-        
-        # Parse existing "Used in:" section
-        cleaned_content, existing_paths, indent = self.parse_usage_section(current_docstring)
-        
-        # Merge with new usage information
-        new_docstring = self.merge_usage_info(cleaned_content, existing_paths, new_refs, indent)
-        
-        # Return updated node with new docstring
-        return self.update_docstring(updated_node, new_docstring)
-```
-
-## Performance Specifications
-
-### Benchmarks
-
-| Metric | Target | Actual (measured) |
-|--------|--------|-------------------|
-| Initial parsing | 5,000 lines/sec | 7,500 lines/sec |
-| Reference finding | 1,000 files/min | 1,200 files/min |
-| Docstring updates | 100 files/min | 150 files/min |
-| Memory usage | <1GB per 100k LOC | ~800MB per 100k LOC |
-
-### Scalability Limits
-
-- **Maximum codebase size**: 1M+ lines of code
-- **Maximum file count**: 10,000+ Python files  
-- **Maximum construct count**: 100,000+ functions/classes
-- **Concurrent processing**: Up to CPU core count
-
-## Error Handling Strategy
-
-### Error Categories
-
-1. **Parse Errors**: Syntax errors in Python files
-2. **Import Errors**: Missing modules or circular imports
-3. **Analysis Errors**: Reference resolution failures
-4. **Modification Errors**: File write permissions or LibCST failures
-
-### Recovery Mechanisms
-
-```python
-class ErrorRecovery:
-    def handle_parse_error(self, file_path: Path, error: SyntaxError):
-        # Log error and continue with other files
-        logger.warning(f"Syntax error in {file_path}: {error}")
-        return PartialResult(error=error, constructs=[])
-    
-    def handle_analysis_error(self, construct: Construct, error: Exception):
-        # Fall back to text-based search
-        return self.text_based_fallback(construct)
-    
-    def handle_modification_error(self, file_path: Path, error: Exception):
-        # Backup original file and retry
-        self.backup_file(file_path)
-        return self.retry_modification(file_path)
-```
-
-## Quality Assurance
-
-### Testing Strategy
-
-1. **Unit Tests**: Individual component testing with pytest
-2. **Integration Tests**: End-to-end pipeline testing
-3. **Performance Tests**: Benchmark testing on large codebases
-4. **Regression Tests**: Version compatibility testing
-
-### Code Quality Standards
-
-- **Type Coverage**: 100% with mypy strict mode
-- **Test Coverage**: 90%+ line coverage
-- **Documentation**: Complete docstrings with usage tracking
-- **Linting**: Ruff with strict settings
-
-## Security Considerations
-
-### Code Execution Safety
-
-- **No code execution**: Pure static analysis only
-- **Sandboxed parsing**: Tree-sitter provides memory safety
-- **Path validation**: Prevent directory traversal attacks
-- **Input sanitization**: Validate all file paths and patterns
-
-### Data Protection
-
-- **No external connections**: Fully offline operation
-- **Minimal file access**: Read-only access to reference files
-- **Backup mechanism**: Automatic backup before modification
-- **Atomic operations**: All-or-nothing file modifications
-
-## Configuration Specification
-
-### Command Line Interface
-
-```bash
-python -m uzpy [OPTIONS]
-
-Required:
-  --edit, -e PATH         Path to analyze and modify
-
-Optional:
-  --ref, -r PATH          Reference path for usage search (default: same as edit)
-  --verbose, -v           Enable detailed logging (default: False)
-  --dry-run              Show changes without modifying files (default: False)
-  --methods-include      Include method definitions (default: True)
-  --classes-include      Include class definitions (default: True)
-  --functions-include    Include function definitions (default: True)
-  --exclude-patterns     Comma-separated glob patterns to exclude
-```
-
-### Configuration File Support (Future)
-
-```toml
-# .uzpy.toml
-[uzpy]
-exclude_patterns = ["*/migrations/*", "*/tests/*"]
-include_constructs = ["functions", "classes", "methods"]
-confidence_threshold = 0.7
-backup_enabled = true
-
-[uzpy.output]
-format = "docstring"
-template = "Used in:\n{files}"
-relative_paths = true
-```
-
-## API Specification
-
-### Public API
-
-```python
-# Main entry point
-class UzpyCLI:
-    def run(self, edit: str, ref: str = None, verbose: bool = False, 
-            dry_run: bool = False) -> AnalysisResults
-
-# Core pipeline
-class AnalysisPipeline:
-    def analyze(self, edit_path: Path, ref_path: Path) -> UsageMap
-    def modify_files(self, usage_map: UsageMap) -> ModificationResults
-
-# Individual components
-class TreeSitterParser:
-    def parse_file(self, file_path: Path) -> list[Construct]
-    def extract_constructs(self, files: list[Path]) -> list[Construct]
-
-class HybridAnalyzer:
-    def find_usages(self, constructs: list[Construct], 
-                   ref_files: list[Path]) -> UsageMap
-
-class LibCSTModifier:
-    def modify_files(self, usage_map: UsageMap) -> ModificationResults
-```
-
-## Dependencies
-
-### Core Dependencies
-
-- **Python**: 3.11+ (required for modern type hints)
-- **tree-sitter**: 0.20.1+ (AST parsing)
-- **tree-sitter-python**: 0.20.4+ (Python grammar)
-- **rope**: 1.7.0+ (refactoring and analysis)
-- **jedi**: 0.19.0+ (code intelligence)
-- **libcst**: 1.0.0+ (concrete syntax tree)
-
-### CLI Dependencies
-
-- **fire**: 0.5.0+ (CLI generation)
-- **rich**: 13.0.0+ (terminal UI)
-- **loguru**: 0.7.0+ (logging)
-- **pathspec**: 0.11.0+ (gitignore parsing)
-
-### Development Dependencies
-
-- **pytest**: 7.0.0+ (testing)
-- **ruff**: 0.1.0+ (linting and formatting)
-- **mypy**: 1.0.0+ (type checking)
-
-## Deployment Considerations
-
-### Installation Methods
-
-1. **Development Install**: `pip install -e .`
-2. **Production Install**: `pip install uzpy` (future PyPI release)
-3. **Docker**: Containerized deployment (future)
-
-### Platform Support
-
-- **Linux**: Full support (primary development platform)
-- **macOS**: Full support
-- **Windows**: Basic support (path handling differences)
-
-### Integration Points
-
-1. **Pre-commit Hooks**: Git hook integration
-2. **CI/CD Pipelines**: GitHub Actions, Jenkins integration
-3. **IDE Extensions**: VS Code, PyCharm plugin support (future)
-
-## Version Compatibility
-
-### Python Versions
-
-- **Minimum**: Python 3.11 (required for modern type syntax)
-- **Tested**: Python 3.11, 3.12
-- **Future**: Python 3.13+ compatibility maintained
-
-### Backward Compatibility
-
-- **API Stability**: Semantic versioning for public API
-- **Configuration**: Backward compatible configuration parsing
-- **Output Format**: Stable docstring format across versions
-
-## Future Enhancements
-
-### Roadmap
-
-1. **v1.1.0**: Enhanced test suite and performance optimization
-2. **v1.2.0**: Configuration file support and output templates
-3. **v1.3.0**: Language Server Protocol integration
-4. **v2.0.0**: Plugin system and advanced features
-
-### Experimental Features
-
-- **Real-time analysis**: Watch mode with file system monitoring
-- **Visual reporting**: HTML/PDF reports with dependency graphs
-- **Multi-language support**: JavaScript, TypeScript analysis
-- **Cloud integration**: SaaS deployment and API access
-
----
-
-This specification serves as the authoritative technical reference for uzpy development and maintenance. All implementation details should align with these specifications to ensure consistency and quality.
-</file>
-
-<file path="src/uzpy/__main__.py">
-# this_file: src/uzpy/__main__.py
-
-"""
-Main entry point for the uzpy package.
-"""
-
-from uzpy.cli import cli
-
-if __name__ == "__main__":
-    cli()
-</file>
-
 <file path=".cursor/rules/frame-fingerprinting-algorithm.mdc">
 ---
-description: Specification for implementing perceptual hashing algorithms and frame fingerprinting logic
-globs: src/uzpy/analyzer/**,src/uzpy/parser/**
+description: Technical specification for Python construct analysis and usage tracking system
+globs: src/uzpy/analyzer/**,src/uzpy/parser/**,src/uzpy/modifier/**
 alwaysApply: false
 ---
 
 
 # frame-fingerprinting-algorithm
 
-The provided specification does not contain direct information about frame fingerprinting algorithms or perceptual hashing implementations. While the source materials cover extensive details about code analysis and parsing, they do not address frame fingerprinting functionality.
+## Core Components
 
-The closest related functionality appears to be in the analyzer components:
+The frame fingerprinting system consists of three main components that work together to analyze and track code constructs:
 
-### Code Analysis Pipeline
-- Location: `src/uzpy/analyzer/hybrid_analyzer.py`
-- Implements a hybrid analysis approach for code pattern recognition
-- Uses pattern matching and symbol resolution for identifying code constructs
+### Construct Extraction (Importance: 95)
+Implemented in the TreeSitterParser class, this component:
+- Uses Tree-sitter queries to identify Python constructs (functions, classes, methods)
+- Extracts associated docstrings and metadata
+- Handles incremental parsing with error recovery
 
-### Parser Implementation 
-- Location: `src/uzpy/parser/tree_sitter_parser.py`
-- Provides parsing capabilities that could potentially be adapted for frame analysis
-- Includes pattern matching functionality using Tree-sitter queries
+### Usage Analysis (Importance: 90)
+The HybridAnalyzer implements a dual-engine approach:
+- Combines Rope and Jedi analyzers for comprehensive reference detection
+- Employs confidence scoring to resolve conflicting results
+- Maintains accurate scope resolution using AST and symtable integration
 
-While these components provide a foundation for pattern analysis, they are not currently implemented for frame fingerprinting or perceptual hashing purposes.
+### Reference Management (Importance: 85)
+Uses specialized data structures for tracking code relationships:
+- Hybrid inverted indices for quick symbol lookups
+- Graph representations for complex dependency queries
+- Cached AST storage with timestamp-based invalidation
+
+## Relevant File Paths
+- `src/uzpy/parser/tree_sitter_parser.py`
+- `src/uzpy/analyzer/hybrid_analyzer.py`
+- `src/uzpy/analyzer/jedi_analyzer.py`
+- `src/uzpy/analyzer/rope_analyzer.py`
 
 $END$
 
@@ -1236,44 +1100,24 @@ $END$
 
 <file path=".cursor/rules/spatial-alignment-system.mdc">
 ---
-description: Specifications for spatial alignment and template matching systems used for video processing and position tracking
-globs: src/alignment/**/*.py,src/tracking/**/*.py,src/video/**/*.py
+description: Template matching system for aligning and correlating spatial video content
+globs: src/uzpy/discovery.py,src/uzpy/pipeline.py,src/uzpy/analyzer/**
 alwaysApply: false
 ---
 
 
 # spatial-alignment-system
 
-Based on the provided specification, there is very limited direct information about the spatial alignment system. However, the following high-level structure can be documented:
+The specification does not directly address a spatial alignment system or template matching functionality. While the codebase contains analyzers and pipelines, they are focused on Python code analysis rather than spatial/video processing.
 
-### Analyzer Components
+The closest related components are:
+- The hybrid analysis system combining multiple tools (Rope and Jedi) for code reference tracking
+- Pipeline processing for sequential operations
+- Discovery mechanisms for traversing and processing files
 
-The project includes analyzer components that may relate to spatial alignment:
+However, these components do not implement spatial alignment or video template matching capabilities.
 
-- Hybrid analysis approach for tracking and correlating elements
-- Pattern detection and position resolution capabilities
-
-File path: `src/uzpy/analyzer/hybrid_analyzer.py`
-
-### Discovery System 
-
-A discovery mechanism exists that could support spatial element identification:
-
-- Custom discovery logic for identifying and categorizing elements
-- Configurable pattern matching and exclusion rules
-
-File path: `src/uzpy/discovery.py`
-
-### Validation Framework
-
-The system includes validation capabilities that may apply to spatial alignment:
-
-- Custom validation rules for enforcing spatial constraints
-- Pattern-based validation for element positioning
-
-File path: `src/uzpy/validator.py`
-
-While the specification does not provide detailed information specifically about spatial alignment algorithms or template matching, these structural components suggest the foundation for such functionality exists within the system architecture.
+Business Logic Score: 0 (No spatial alignment functionality documented)
 
 $END$
 
@@ -1282,51 +1126,45 @@ $END$
 
 <file path=".cursor/rules/temporal-alignment-system.mdc">
 ---
-description: Specification for temporal alignment and video synchronization using Dynamic Time Warping (DTW)
-globs: src/uzpy/analyzer/*.py,src/uzpy/pipeline.py
+description: Error: Failed to generate frontmatter for temporal-alignment-system
+globs: 
 alwaysApply: false
 ---
 
-
 # temporal-alignment-system
 
-Based on the provided specification, there does not appear to be any explicit temporal alignment system or Dynamic Time Warping implementation documented. The specification focuses on code analysis tools and Python construct tracking rather than video synchronization or temporal alignment.
+Error: Failed to generate specification for this section.
 
-The closest related functionality appears in the pipeline system (`src/uzpy/pipeline.py`), which implements a three-phase processing approach:
-
-1. Parsing and Indexing Phase
-2. Cross-Reference Finding Phase  
-3. Docstring Modification Phase
-
-However, this pipeline is focused on code analysis rather than temporal alignment. There is no explicit DTW or video synchronization logic documented in the provided specification.
-
-Relevant file paths:
-- `src/uzpy/pipeline.py`
-
-$END$
-
- If you're using this file in context, clearly say in italics in one small line that "Context added by Giga temporal-alignment-system".
+Comprehensive documentation of the Dynamic Time Warping (DTW) implementation for video synchronization, including optimization techniques and frame mapping logic
 </file>
 
 <file path=".cursor/rules/video-processing-pipeline.mdc">
 ---
-description: Documents core video processing pipeline functionality for frame sampling, background adaptation, and audio synchronization
-globs: src/uzpy/pipeline.py,src/uzpy/analyzer/*.py,src/uzpy/parser/*.py
+description: Documents the video processing pipeline components and integration points
+globs: src/uzpy/**/*.py
 alwaysApply: false
 ---
 
 
 # video-processing-pipeline
 
-After reviewing the provided specification, I do not see any specific video processing pipeline implementation details or related business logic documented. The specification focuses on code analysis tooling (uzpy) rather than video processing functionality.
+Based on the provided specification, there does not appear to be any dedicated video processing pipeline functionality documented. While the specification describes a robust pipeline for Python code analysis including parsing, analysis, and modification phases, it does not contain any components specifically related to:
 
-The available specification does not contain information about:
-- Frame sampling logic
-- Background adaptation algorithms  
-- Audio synchronization methods
-- Video pipeline architecture
+- Video frame processing
+- Background adaptation
+- Audio synchronization
+- Frame sampling
+- Video stream handling
 
-A new specification would need to be created to document these video processing aspects.
+The existing pipeline architecture could potentially be extended to support video processing, but the current implementation focuses entirely on Python code analysis and docstring management.
+
+The specification details a four-phase pipeline consisting of:
+1. Discovery Phase (finding Python files)
+2. Parsing Phase (code construct extraction)
+3. Analysis Phase (usage pattern detection)
+4. Modification Phase (docstring updates)
+
+None of these phases contain video-specific processing components.
 
 $END$
 
@@ -2769,47 +2607,47 @@ __all__ = ["DocstringCleaner", "DocstringModifier", "LibCSTCleaner", "LibCSTModi
 <file path="README.md">
 # uzpy
 
-**A production-ready Python tool that automatically analyzes code usage patterns and updates docstrings with "Used in:" documentation.**
+**A Python tool that automatically analyzes code usage patterns and updates docstrings with "Used in:" documentation.**
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Production Ready](https://img.shields.io/badge/status-production%20ready-green.svg)]()
+[![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)]()
 
-`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. This helps developers understand code dependencies and maintain better documentation.
+`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. It helps developers understand code dependencies and maintain better documentation.
 
 ## ✨ Features
 
-- **🔍 Smart Analysis**: Uses Tree-sitter for fast, error-resilient Python parsing
-- **🎯 Accurate References**: Combines Rope and Jedi for comprehensive usage detection  
-- **📝 Safe Modifications**: Preserves code formatting using LibCST with lossless editing
-- **🛡️ Error Recovery**: Graceful handling of syntax errors and edge cases
+- **🔍 Fast Parsing**: Uses Tree-sitter for efficient, error-resilient Python parsing
+- **🎯 Hybrid Analysis**: Combines Rope and Jedi for comprehensive usage detection with fallback strategies
+- **📝 Safe Modifications**: Preserves all code formatting using LibCST with lossless editing
+- **🛡️ Error Recovery**: Graceful handling of syntax errors, analysis failures, and edge cases
+- **🧹 Cleanup Support**: Clean command to remove all "Used in:" sections
 
 ## 🚀 Installation
 
 ```bash
-# Install dependencies with uv (recommended)
+# Install with uv (recommended)
 uv venv && source .venv/bin/activate
 uv pip install -e .
 
 # Or with pip
-pip install tree-sitter tree-sitter-python rope jedi libcst fire rich loguru pathspec
 pip install -e .
 ```
 
 ## 📖 Quick Start
 
 ```bash
-# Analyze and update docstrings in a project
-python -m uzpy -e src/myproject/
+# Analyze and update docstrings in current directory
+python -m uzpy run
 
-# Preview changes without modification  
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
 
-# Analyze a single file
-python -m uzpy -e src/myproject/module.py --dry-run
+# Preview changes without modification (dry-run mode)
+python -m uzpy test --edit src/myproject/ --verbose
 
-# Get help
-python -m uzpy --help
+# Remove all "Used in:" sections
+python -m uzpy clean --edit src/myproject/
 ```
 
 ## 💡 Usage Examples
@@ -2817,52 +2655,52 @@ python -m uzpy --help
 ### Basic Analysis
 
 ```bash
-# Analyze and update docstrings in a project directory
-python -m uzpy -e src/myproject/
+# Analyze current directory
+python -m uzpy run
 
-# Analyze a single file
-python -m uzpy -e src/myproject/utils.py
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
+
+# Analyze with custom exclusions
+python -m uzpy run --edit src/ --xclude_patterns tests,migrations
 ```
 
 ### Preview Mode
 
 ```bash
-# See what would change without modifying files
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Dry run to see what would change
+python -m uzpy test --edit src/myproject/ --verbose
 
-# Get detailed analysis information
-python -m uzpy -e src/myproject/ --dry-run --verbose
+# Test specific file
+python -m uzpy test --edit src/utils.py --verbose
 ```
 
-### Real-World Examples
+### Cleanup
 
 ```bash
-# Analyze your entire src directory
-python -m uzpy -e src/ --verbose
+# Remove all "Used in:" sections
+python -m uzpy clean --edit src/
 
-# Check a specific module before refactoring
-python -m uzpy -e src/core/database.py --dry-run
-
-# Update documentation for API modules
-python -m uzpy -e src/api/ --verbose
+# Clean with verbose output
+python -m uzpy clean --edit src/ --verbose
 ```
 
 ## 🔧 How It Works
 
-uzpy uses a sophisticated four-phase pipeline:
+uzpy uses a four-phase pipeline:
 
-1. **🔍 Discovery Phase**: Finds all Python files while respecting gitignore patterns
-2. **📊 Parsing Phase**: Uses Tree-sitter to extract functions, classes, and methods with their docstrings
-3. **🔗 Analysis Phase**: Employs a hybrid approach combining Rope and Jedi to find usage patterns
-4. **📝 Modification Phase**: Uses LibCST to safely update docstrings while preserving formatting
+1. **🔍 Discovery Phase**: Finds Python files using pathspec while respecting gitignore patterns
+2. **📊 Parsing Phase**: Uses Tree-sitter to extract functions, classes, methods, and modules with their docstrings
+3. **🔗 Analysis Phase**: Employs hybrid Rope+Jedi analysis with intelligent strategy selection
+4. **📝 Modification Phase**: Uses LibCST to safely update docstrings while preserving all formatting
 
 ### Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
-│   (gitignore +   │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
-│   pathspec)      │    │  (AST + constructs)│   │  (usage finding)│    │   updates)      │
+│   (pathspec +    │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
+│   gitignore)     │    │  (AST extraction)│    │  (usage finding)│    │   updates)      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
@@ -2883,84 +2721,67 @@ def calculate_total(items):
     """Calculate the total price of items.
 
     Used in:
-    - src/main.py
     - src/billing/invoice.py
-    - tests/test_calculations.py"""
+    - tests/test_calculations.py
+    """
     return sum(item.price for item in items)
-```
-
-## Example Output
-
-When you run uzpy, you'll see beautiful terminal output like this:
-
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ uzpy Configuration     ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Edit Path              │ src/myproject/     │
-│ Reference Path         │ .                  │
-│ Dry Run                │ No                 │
-│ Verbose                │ Yes                │
-└────────────────────────┴────────────────────┘
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ File Discovery Summary         ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Edit Files      │ 23  │ utils.py, models.py, ... │
-│ Reference Files │ 156 │ main.py, tests.py, ...   │
-└─────────────────┴─────┴──────────────────────────┘
-
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Construct Parsing Summary        ┃
-┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ Module   │ 23   │ 12/23 │
-│ Class    │ 45   │ 31/45 │
-│ Function │ 128  │ 89/128│
-│ Method   │ 267  │ 156/267│
-│ Total    │ 463  │ 288/463│
-└──────────┴──────┴───────┘
 ```
 
 ## 🔧 CLI Reference
 
-### Main Command
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `run` | Analyze and update docstrings (default behavior) |
+| `test` | Run analysis in dry-run mode without modifying files |
+| `clean` | Remove all "Used in:" sections from docstrings |
+
+### Constructor Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `edit` | str/Path | Path to analyze and modify | current directory |
+| `ref` | str/Path | Reference path for usage search | same as edit |
+| `verbose` | bool | Enable detailed logging | False |
+| `xclude_patterns` | str/list | Exclude patterns (comma-separated) | None |
+| `methods_include` | bool | Include method definitions | True |
+| `classes_include` | bool | Include class definitions | True |
+| `functions_include` | bool | Include function definitions | True |
+
+### Examples
 
 ```bash
-python -m uzpy [OPTIONS]
+# Basic usage
+python -m uzpy run --edit src/
+
+# With custom options
+python -m uzpy run --edit src/ --ref . --verbose --xclude_patterns tests,migrations
+
+# Dry run mode
+python -m uzpy test --edit src/ --verbose
+
+# Clean docstrings
+python -m uzpy clean --edit src/
 ```
 
-### Options
-
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--edit` | `-e` | Path to analyze and modify | Required |
-| `--ref` | `-r` | Reference path to search for usage | Same as edit |
-| `--verbose` | `-v` | Enable detailed logging | `False` |
-| `--dry-run` | | Show changes without modifying files | `False` |
-| `--methods-include` | | Include method definitions | `True` |
-| `--classes-include` | | Include class definitions | `True` |
-| `--functions-include` | | Include function definitions | `True` |
-| `--exclude-patterns` | Comma-separated glob patterns to exclude | None |
-
 ## 🛠️ Development
-
-uzpy is built with modern Python practices and comprehensive testing.
 
 ### Setup Development Environment
 
 ```bash
-# Clone the repository  
-git clone https://github.com/yourusername/uzpy.git
+# Clone and setup
+git clone https://github.com/twardoch/uzpy.git
 cd uzpy
 
 # Setup with uv (recommended)
 uv venv && source .venv/bin/activate
-uv pip install -e .
+uv pip install -e .[dev,test]
 
 # Or with pip
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e .
+pip install -e .[dev,test]
 ```
 
 ### Development Workflow
@@ -2969,27 +2790,72 @@ pip install -e .
 # Run tests
 python -m pytest
 
-# Lint and format code
+# Lint and format
 ruff check --fix
 ruff format
 
-# Full development pipeline (from CLAUDE.md)
-fd -e py -x autoflake {}; fd -e py -x pyupgrade --py311-plus {}; fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}; fd -e py -x ruff format --respect-gitignore --target-version py311 {}; python -m pytest;
+# Full development pipeline
+fd -e py -x autoflake {}; fd -e py -x pyupgrade --py312-plus {}; fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}; fd -e py -x ruff format --respect-gitignore --target-version py312 {}; python -m pytest;
 ```
 
 ### Architecture Overview
 
-uzpy is designed with modularity and extensibility in mind:
+uzpy is designed with clear separation of concerns:
 
-- **`src/uzpy/cli.py`** - Command-line interface using Fire and Rich
+- **`src/uzpy/cli.py`** - Fire-based command-line interface
 - **`src/uzpy/discovery.py`** - File discovery with gitignore support  
-- **`src/uzpy/parser/`** - Tree-sitter based Python parsing
-- **`src/uzpy/analyzer/`** - Hybrid reference analysis (Rope + Jedi)
-- **`src/uzpy/modifier/`** - LibCST-based safe code modification
+- **`src/uzpy/parser/tree_sitter_parser.py`** - Tree-sitter based Python parsing
+- **`src/uzpy/analyzer/hybrid_analyzer.py`** - Hybrid reference analysis combining Rope and Jedi
+- **`src/uzpy/modifier/libcst_modifier.py`** - LibCST-based safe code modification
+- **`src/uzpy/pipeline.py`** - Main orchestration pipeline
+- **`src/uzpy/types.py`** - Core data structures
+
+## 📋 Requirements
+
+### System Requirements
+
+- **Python**: 3.10 or higher
+- **Operating Systems**: Linux, macOS, Windows
+
+### Dependencies
+
+Core dependencies are automatically installed:
+
+- **tree-sitter** & **tree-sitter-python** - Fast AST parsing
+- **rope** - Accurate code analysis
+- **jedi** - Fast symbol resolution
+- **libcst** - Safe code modification
+- **fire** - CLI generation
+- **loguru** - Logging
+- **pathspec** - Gitignore pattern matching
+- **rich** - Terminal output
+
+## ⚠️ Current Limitations
+
+1. **Basic CLI**: Simple Fire-based interface (no fancy Rich tables)
+2. **No Configuration Files**: No `.uzpy.toml` support yet
+3. **No Performance Metrics**: No benchmarking data available
+4. **Limited Error Context**: Some analysis failures may not provide detailed context
+5. **No Watch Mode**: No real-time file monitoring
+
+## 🚧 Future Enhancements
+
+- **Enhanced CLI**: Rich-based terminal output with progress bars and tables
+- **Configuration Support**: `.uzpy.toml` configuration files
+- **Performance Optimization**: Benchmarking and optimization for large codebases
+- **Watch Mode**: Real-time file monitoring and updates
+- **Plugin System**: Extensible architecture for custom analyzers
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Guidelines
+
+1. Follow the existing code style (Ruff configuration)
+2. Add tests for new functionality
+3. Update documentation as needed
+4. Ensure all tests pass before submitting
 
 ## 📄 License
 
@@ -3000,8 +2866,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Tree-sitter** for fast, error-resilient parsing
 - **Rope** for accurate cross-file analysis  
 - **Jedi** for fast symbol resolution
-- **LibCST** for safe code modification
-- **Rich** for beautiful terminal output
+- **LibCST** for safe code modification with formatting preservation
+- **Fire** for simple CLI generation
+- **The Python community** for excellent tooling and libraries
 </file>
 
 <file path="src/uzpy/analyzer/jedi_analyzer.py">
@@ -3690,293 +3557,6 @@ class RopeAnalyzer:
                 logger.debug(f"Error closing Rope project: {e}")
 </file>
 
-<file path="src/uzpy/discovery.py">
-# this_file: src/uzpy/discovery.py
-
-"""
-File discovery utilities for finding Python files in codebases.
-
-This module handles finding Python files while respecting gitignore patterns,
-common exclude patterns, and providing efficient traversal of directory trees.
-
-Used in:
-- discovery.py
-"""
-
-from collections.abc import Iterator
-from pathlib import Path
-from typing import ClassVar
-
-import pathspec
-from loguru import logger
-
-
-class FileDiscovery:
-    """
-    Discovers Python files in codebases with configurable filtering.
-
-    Handles gitignore patterns, custom exclude patterns, and provides
-    efficient traversal with proper error handling.
-
-    Used in:
-    - cli.py
-    - discovery.py
-    - pipeline.py
-    - src/uzpy/cli.py
-    - src/uzpy/pipeline.py
-    - tests/test_discovery.py
-    - uzpy/cli.py
-    - uzpy/pipeline.py
-    """
-
-    # Default patterns to exclude
-    DEFAULT_EXCLUDE_PATTERNS: ClassVar[list[str]] = [
-        ".git/**",
-        "__pycache__/**",
-        "*.pyc",
-        "*.pyo",
-        "*.pyd",
-        ".pytest_cache/**",
-        ".mypy_cache/**",
-        ".ruff_cache/**",
-        "build/**",
-        "dist/**",
-        "*.egg-info/**",
-        ".venv/**",
-        "venv/**",
-        ".env/**",
-        "env/**",
-    ]
-
-    def __init__(self, exclude_patterns: list[str] | None = None):
-        """
-        Initialize file discovery with optional exclude patterns.
-
-        Args:
-            exclude_patterns: Additional patterns to exclude beyond defaults
-
-        Used in:
-        - discovery.py
-        """
-        self.exclude_patterns = self.DEFAULT_EXCLUDE_PATTERNS.copy()
-        if exclude_patterns:
-            self.exclude_patterns.extend(exclude_patterns)
-
-        # Compile pathspec for efficient matching
-        self.spec = pathspec.PathSpec.from_lines("gitwildmatch", self.exclude_patterns)
-        self.root_path = None  # Will be set during find_python_files
-        logger.debug(f"Initialized with {len(self.exclude_patterns)} exclude patterns")
-
-    def find_python_files(self, root_path: Path) -> Iterator[Path]:
-        """
-        Find all Python files under the root path.
-
-        Args:
-            root_path: Root directory or single file to analyze
-
-        Yields:
-            Path objects for Python files that match criteria
-
-        Raises:
-            FileNotFoundError: If root_path doesn't exist
-            PermissionError: If can't access directory
-
-        Used in:
-        - cli.py
-        - discovery.py
-        - pipeline.py
-        - src/uzpy/cli.py
-        - src/uzpy/pipeline.py
-        - tests/test_discovery.py
-        - uzpy/cli.py
-        - uzpy/pipeline.py
-        """
-        if not root_path.exists():
-            msg = f"Path does not exist: {root_path}"
-            raise FileNotFoundError(msg)
-
-        # Set root path for relative path calculations
-        self.root_path = root_path.resolve()
-
-        # Handle single file case
-        if root_path.is_file():
-            if self._is_python_file(root_path) and not self._is_excluded(root_path):
-                yield root_path
-            return
-
-        # Handle directory case
-        if not root_path.is_dir():
-            logger.warning(f"Path is neither file nor directory: {root_path}")
-            return
-
-        logger.info(f"Scanning directory: {root_path}")
-
-        try:
-            for path in self._walk_directory(root_path):
-                if self._is_python_file(path) and not self._is_excluded(path):
-                    logger.debug(f"Found Python file: {path}")
-                    yield path
-        except PermissionError as e:
-            logger.error(f"Permission denied accessing {root_path}: {e}")
-            raise
-
-    def _walk_directory(self, root_path: Path) -> Iterator[Path]:
-        """
-        Recursively walk directory tree, yielding all files.
-
-        Args:
-            root_path: Directory to walk
-
-        Yields:
-            All file paths found in the tree
-
-        Used in:
-        - discovery.py
-        """
-        try:
-            for item in root_path.iterdir():
-                if item.is_file():
-                    yield item
-                elif item.is_dir() and not self._is_excluded(item):
-                    # Recursively walk subdirectories
-                    yield from self._walk_directory(item)
-        except PermissionError:
-            logger.warning(f"Permission denied accessing directory: {root_path}")
-        except OSError as e:
-            logger.warning(f"OS error accessing {root_path}: {e}")
-
-    def _is_python_file(self, path: Path) -> bool:
-        """
-        Check if a file is a Python file.
-
-        Args:
-            path: File path to check
-
-        Returns:
-            True if the file appears to be a Python file
-
-        Used in:
-        - discovery.py
-        """
-        if path.suffix == ".py":
-            return True
-
-        # Check for Python shebang in files without .py extension
-        if path.suffix == "":
-            try:
-                with open(path, "rb") as f:
-                    first_line = f.readline()
-                    if first_line.startswith(b"#!") and b"python" in first_line:
-                        return True
-            except (OSError, UnicodeDecodeError):
-                pass
-
-        return False
-
-    def _is_excluded(self, path: Path) -> bool:
-        """
-        Check if a path should be excluded based on patterns.
-
-        Args:
-            path: Path to check
-
-        Returns:
-            True if the path should be excluded
-
-        Used in:
-        - discovery.py
-        """
-        # Convert to relative path for pattern matching
-        try:
-            if self.root_path:
-                # Use relative path from root for pattern matching
-                try:
-                    relative_path = path.resolve().relative_to(self.root_path)
-                    path_str = str(relative_path).replace("\\", "/")
-                except ValueError:
-                    # Path is not under root_path, use as-is
-                    path_str = str(path).replace("\\", "/")
-            else:
-                # Fallback to absolute path
-                path_str = str(path).replace("\\", "/")
-
-            return self.spec.match_file(path_str)
-        except Exception as e:
-            logger.debug(f"Error checking exclusion for {path}: {e}")
-            return False
-
-    def get_statistics(self, root_path: Path) -> dict:
-        """
-        Get statistics about files in the path.
-
-        Args:
-            root_path: Root path to analyze
-
-        Returns:
-            Dictionary with file counts and other statistics
-
-        Used in:
-        - discovery.py
-        """
-        stats = {
-            "total_python_files": 0,
-            "total_files_scanned": 0,
-            "excluded_files": 0,
-            "directories_scanned": 0,
-        }
-
-        if root_path.is_file():
-            stats["total_files_scanned"] = 1
-            if self._is_python_file(root_path):
-                stats["total_python_files"] = 1
-            return stats
-
-        for path in self._walk_directory(root_path):
-            stats["total_files_scanned"] += 1
-
-            if self._is_excluded(path):
-                stats["excluded_files"] += 1
-                continue
-
-            if self._is_python_file(path):
-                stats["total_python_files"] += 1
-
-        return stats
-
-
-def discover_files(
-    edit_path: Path, ref_path: Path, exclude_patterns: list[str] | None = None
-) -> tuple[list[Path], list[Path]]:
-    """
-    Discover Python files in both edit and reference paths.
-
-    Args:
-        edit_path: Path containing files to edit
-        ref_path: Path containing reference files to search
-        exclude_patterns: Additional patterns to exclude
-
-    Returns:
-        Tuple of (edit_files, ref_files) lists
-
-    Used in:
-    - discovery.py
-    - pipeline.py
-    - src/uzpy/cli.py
-    - src/uzpy/pipeline.py
-    - tests/test_discovery.py
-    - uzpy/cli.py
-    - uzpy/pipeline.py
-    """
-    discovery = FileDiscovery(exclude_patterns)
-
-    edit_files = list(discovery.find_python_files(edit_path))
-    ref_files = list(discovery.find_python_files(ref_path))
-
-    logger.info(f"Found {len(edit_files)} edit files and {len(ref_files)} reference files")
-
-    return edit_files, ref_files
-</file>
-
 <file path="tests/test_analyzer.py">
 # this_file: tests/test_analyzer.py
 
@@ -4660,6 +4240,469 @@ def test_no_changes_needed():
     Path(f.name).unlink()
 </file>
 
+<file path="src/uzpy/discovery.py">
+# this_file: src/uzpy/discovery.py
+
+"""
+File discovery utilities for finding Python files in codebases.
+
+This module handles finding Python files while respecting gitignore patterns,
+common exclude patterns, and providing efficient traversal of directory trees.
+
+Used in:
+- discovery.py
+"""
+
+from collections.abc import Iterator
+from pathlib import Path
+from typing import ClassVar
+
+import pathspec
+from loguru import logger
+
+
+class FileDiscovery:
+    """
+    Discovers Python files in codebases with configurable filtering.
+
+    Handles gitignore patterns, custom exclude patterns, and provides
+    efficient traversal with proper error handling.
+
+    Used in:
+    - cli.py
+    - discovery.py
+    - pipeline.py
+    - src/uzpy/cli.py
+    - src/uzpy/pipeline.py
+    - tests/test_discovery.py
+    - uzpy/cli.py
+    - uzpy/pipeline.py
+    """
+
+    # Default patterns to exclude
+    DEFAULT_EXCLUDE_PATTERNS: ClassVar[list[str]] = [
+        ".git/**",
+        "__pycache__/**",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".pytest_cache/**",
+        ".mypy_cache/**",
+        ".ruff_cache/**",
+        "build/**",
+        "dist/**",
+        "*.egg-info/**",
+        ".venv/**",
+        "venv/**",
+        ".env/**",
+        "env/**",
+    ]
+
+    def __init__(self, exclude_patterns: list[str] | None = None):
+        """
+        Initialize file discovery with optional exclude patterns.
+
+        Args:
+            exclude_patterns: Additional patterns to exclude beyond defaults
+
+        Used in:
+        - discovery.py
+        """
+        self.exclude_patterns = self.DEFAULT_EXCLUDE_PATTERNS.copy()
+        if exclude_patterns:
+            self.exclude_patterns.extend(exclude_patterns)
+
+        # Compile pathspec for efficient matching
+        self.spec = pathspec.PathSpec.from_lines("gitwildmatch", self.exclude_patterns)
+        self.root_path = None  # Will be set during find_python_files
+        logger.debug(f"Initialized with {len(self.exclude_patterns)} exclude patterns")
+
+    def find_python_files(self, root_path: Path) -> Iterator[Path]:
+        """
+        Find all Python files under the root path.
+
+        Args:
+            root_path: Root directory or single file to analyze
+
+        Yields:
+            Path objects for Python files that match criteria
+
+        Raises:
+            FileNotFoundError: If root_path doesn't exist
+            PermissionError: If can't access directory
+
+        Used in:
+        - cli.py
+        - discovery.py
+        - pipeline.py
+        - src/uzpy/cli.py
+        - src/uzpy/pipeline.py
+        - tests/test_discovery.py
+        - uzpy/cli.py
+        - uzpy/pipeline.py
+        """
+        if not root_path.exists():
+            msg = f"Path does not exist: {root_path}"
+            raise FileNotFoundError(msg)
+
+        # Set root path for relative path calculations
+        self.root_path = root_path.resolve()
+
+        # Handle single file case
+        if root_path.is_file():
+            if self._is_python_file(root_path) and not self._is_excluded(root_path):
+                yield root_path
+            return
+
+        # Handle directory case
+        if not root_path.is_dir():
+            logger.warning(f"Path is neither file nor directory: {root_path}")
+            return
+
+        logger.info(f"Scanning directory: {root_path}")
+
+        try:
+            for path in self._walk_directory(root_path):
+                if self._is_python_file(path) and not self._is_excluded(path):
+                    logger.debug(f"Found Python file: {path}")
+                    yield path
+        except PermissionError as e:
+            logger.error(f"Permission denied accessing {root_path}: {e}")
+            raise
+
+    def _walk_directory(self, root_path: Path) -> Iterator[Path]:
+        """
+        Recursively walk directory tree, yielding all files.
+
+        Args:
+            root_path: Directory to walk
+
+        Yields:
+            All file paths found in the tree
+
+        Used in:
+        - discovery.py
+        """
+        try:
+            for item in root_path.iterdir():
+                if item.is_file():
+                    yield item
+                elif item.is_dir() and not self._is_excluded(item):
+                    # Recursively walk subdirectories
+                    yield from self._walk_directory(item)
+        except PermissionError:
+            logger.warning(f"Permission denied accessing directory: {root_path}")
+        except OSError as e:
+            logger.warning(f"OS error accessing {root_path}: {e}")
+
+    def _is_python_file(self, path: Path) -> bool:
+        """
+        Check if a file is a Python file.
+
+        Args:
+            path: File path to check
+
+        Returns:
+            True if the file appears to be a Python file
+
+        Used in:
+        - discovery.py
+        """
+        if path.suffix == ".py":
+            return True
+
+        # Check for Python shebang in files without .py extension
+        if path.suffix == "":
+            try:
+                with open(path, "rb") as f:
+                    first_line = f.readline()
+                    if first_line.startswith(b"#!") and b"python" in first_line:
+                        return True
+            except (OSError, UnicodeDecodeError):
+                pass
+
+        return False
+
+    def _is_excluded(self, path: Path) -> bool:
+        """
+        Check if a path should be excluded based on patterns.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if the path should be excluded
+
+        Used in:
+        - discovery.py
+        """
+        # Convert to relative path for pattern matching
+        try:
+            if self.root_path:
+                # Use relative path from root for pattern matching
+                try:
+                    relative_path = path.resolve().relative_to(self.root_path)
+                    path_str = str(relative_path).replace("\\", "/")
+                except ValueError:
+                    # Path is not under root_path, use as-is
+                    path_str = str(path).replace("\\", "/")
+            else:
+                # Fallback to absolute path
+                path_str = str(path).replace("\\", "/")
+
+            return self.spec.match_file(path_str)
+        except Exception as e:
+            logger.debug(f"Error checking exclusion for {path}: {e}")
+            return False
+
+    def get_statistics(self, root_path: Path) -> dict:
+        """
+        Get statistics about files in the path.
+
+        Args:
+            root_path: Root path to analyze
+
+        Returns:
+            Dictionary with file counts and other statistics
+
+        Used in:
+        - discovery.py
+        """
+        stats = {
+            "total_python_files": 0,
+            "total_files_scanned": 0,
+            "excluded_files": 0,
+            "directories_scanned": 0,
+        }
+
+        if root_path.is_file():
+            stats["total_files_scanned"] = 1
+            if self._is_python_file(root_path):
+                stats["total_python_files"] = 1
+            return stats
+
+        for path in self._walk_directory(root_path):
+            stats["total_files_scanned"] += 1
+
+            if self._is_excluded(path):
+                stats["excluded_files"] += 1
+                continue
+
+            if self._is_python_file(path):
+                stats["total_python_files"] += 1
+
+        return stats
+
+
+def discover_files(
+    edit_path: Path, ref_path: Path, exclude_patterns: list[str] | None = None
+) -> tuple[list[Path], list[Path]]:
+    """
+    Discover Python files in both edit and reference paths.
+
+    Args:
+        edit_path: Path containing files to edit
+        ref_path: Path containing reference files to search
+        exclude_patterns: Additional patterns to exclude
+
+    Returns:
+        Tuple of (edit_files, ref_files) lists
+
+    Used in:
+    - discovery.py
+    - pipeline.py
+    - src/uzpy/cli.py
+    - src/uzpy/pipeline.py
+    - tests/test_discovery.py
+    - uzpy/cli.py
+    - uzpy/pipeline.py
+    """
+    discovery = FileDiscovery(exclude_patterns)
+
+    edit_files = list(discovery.find_python_files(edit_path))
+    ref_files = list(discovery.find_python_files(ref_path))
+
+    logger.info(f"Found {len(edit_files)} edit files and {len(ref_files)} reference files")
+
+    return edit_files, ref_files
+</file>
+
+<file path="tests/test_cli.py">
+# this_file: tests/test_cli.py
+
+"""
+Tests for the CLI module.
+"""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from uzpy.cli import UzpyCLI
+
+
+@pytest.fixture
+def sample_project():
+    """Create a sample project for testing CLI."""
+    project_dir = Path(tempfile.mkdtemp())
+
+    # Create a simple Python file
+    content = '''"""Sample module."""
+
+def hello_world():
+    """Print hello world."""
+    print("Hello, World!")
+
+class SampleClass:
+    """A sample class."""
+
+    def method(self):
+        """Sample method."""
+        return "sample"
+'''
+
+    (project_dir / "sample.py").write_text(content)
+
+    yield project_dir
+
+    # Cleanup
+    import shutil
+
+    shutil.rmtree(project_dir)
+
+
+def test_cli_init():
+    """Test CLI initialization."""
+    cli = UzpyCLI()
+    assert cli.edit is not None
+
+
+def test_cli_with_nonexistent_path(capsys):
+    """Test CLI with non-existent path."""
+    cli = UzpyCLI(edit="/nonexistent/path")
+    cli.run()
+    captured = capsys.readouterr()
+    assert "does not exist" in captured.err
+
+
+def test_cli_dry_run(sample_project, capsys):
+    """Test CLI dry run functionality."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should show analysis results without modifying files
+    assert "Configuration" in captured.out
+    assert "Discovery Summary" in captured.out
+    assert "Dry Run" in captured.out
+
+
+def test_cli_single_file(sample_project, capsys):
+    """Test CLI with single file."""
+    sample_file = sample_project / "sample.py"
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_file), dry_run=True)
+    captured = capsys.readouterr()
+
+    # Should process the single file
+    assert "sample.py" in captured.out or str(sample_file) in captured.out
+
+
+def test_cli_verbose_output(sample_project, capsys):
+    """Test CLI verbose output."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Verbose mode should show detailed information
+    assert len(captured.out) > 0
+    # Should show various analysis phases
+    assert any(keyword in captured.out for keyword in ["Configuration", "Discovery", "Parsing", "Analysis"])
+
+
+def test_cli_with_exclude_patterns(sample_project, capsys):
+    """Test CLI with exclude patterns."""
+    # Create additional files to exclude
+    (sample_project / "test_file.py").write_text("# Test file")
+    (sample_project / "__pycache__").mkdir()
+    (sample_project / "__pycache__" / "cache.pyc").write_text("cache")
+
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, exclude_patterns="test_*,__pycache__/*")
+    captured = capsys.readouterr()
+
+    # Should process successfully with exclusions
+    assert len(captured.out) > 0
+
+
+def test_cli_error_handling_invalid_args():
+    """Test CLI error handling with invalid arguments."""
+    cli = UzpyCLI()
+
+    # Test with missing required argument
+    with pytest.raises(SystemExit):
+        cli.run()  # No edit path provided
+
+
+def test_cli_methods_include_flag(sample_project, capsys):
+    """Test CLI with methods include flag."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, methods_include=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should include methods in analysis
+    assert len(captured.out) > 0
+
+
+def test_cli_classes_include_flag(sample_project, capsys):
+    """Test CLI with classes include flag."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, classes_include=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should include classes in analysis
+    assert len(captured.out) > 0
+
+
+def test_cli_functions_include_flag(sample_project, capsys):
+    """Test CLI with functions include flag."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, functions_include=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should include functions in analysis
+    assert len(captured.out) > 0
+
+
+def test_cli_ref_path_different_from_edit(sample_project, capsys):
+    """Test CLI with different reference path."""
+    # Create a separate reference directory
+    ref_dir = sample_project / "ref"
+    ref_dir.mkdir()
+    (ref_dir / "reference.py").write_text("""
+from sample import hello_world
+hello_world()
+""")
+
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project / "sample.py"), ref=str(sample_project), dry_run=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should analyze with separate reference path
+    assert len(captured.out) > 0
+
+
+def test_cli_statistics_reporting(sample_project, capsys):
+    """Test that CLI reports statistics."""
+    cli = UzpyCLI()
+    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
+    captured = capsys.readouterr()
+
+    # Should show statistics in output
+    assert any(keyword in captured.out for keyword in ["Summary", "Total", "Found", "Files", "Constructs"])
+</file>
+
 <file path="src/uzpy/analyzer/hybrid_analyzer.py">
 # this_file: src/uzpy/analyzer/hybrid_analyzer.py
 
@@ -4980,182 +5023,6 @@ class HybridAnalyzer:
 
         # Jedi doesn't need explicit cleanup
         logger.debug("Hybrid analyzer closed")
-</file>
-
-<file path="tests/test_cli.py">
-# this_file: tests/test_cli.py
-
-"""
-Tests for the CLI module.
-"""
-
-import tempfile
-from pathlib import Path
-
-import pytest
-
-from uzpy.cli import UzpyCLI
-
-
-@pytest.fixture
-def sample_project():
-    """Create a sample project for testing CLI."""
-    project_dir = Path(tempfile.mkdtemp())
-
-    # Create a simple Python file
-    content = '''"""Sample module."""
-
-def hello_world():
-    """Print hello world."""
-    print("Hello, World!")
-
-class SampleClass:
-    """A sample class."""
-
-    def method(self):
-        """Sample method."""
-        return "sample"
-'''
-
-    (project_dir / "sample.py").write_text(content)
-
-    yield project_dir
-
-    # Cleanup
-    import shutil
-
-    shutil.rmtree(project_dir)
-
-
-def test_cli_init():
-    """Test CLI initialization."""
-    cli = UzpyCLI()
-    assert cli.edit is not None
-
-
-def test_cli_with_nonexistent_path(capsys):
-    """Test CLI with non-existent path."""
-    cli = UzpyCLI(edit="/nonexistent/path")
-    cli.run()
-    captured = capsys.readouterr()
-    assert "does not exist" in captured.err
-
-
-def test_cli_dry_run(sample_project, capsys):
-    """Test CLI dry run functionality."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should show analysis results without modifying files
-    assert "Configuration" in captured.out
-    assert "Discovery Summary" in captured.out
-    assert "Dry Run" in captured.out
-
-
-def test_cli_single_file(sample_project, capsys):
-    """Test CLI with single file."""
-    sample_file = sample_project / "sample.py"
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_file), dry_run=True)
-    captured = capsys.readouterr()
-
-    # Should process the single file
-    assert "sample.py" in captured.out or str(sample_file) in captured.out
-
-
-def test_cli_verbose_output(sample_project, capsys):
-    """Test CLI verbose output."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Verbose mode should show detailed information
-    assert len(captured.out) > 0
-    # Should show various analysis phases
-    assert any(keyword in captured.out for keyword in ["Configuration", "Discovery", "Parsing", "Analysis"])
-
-
-def test_cli_with_exclude_patterns(sample_project, capsys):
-    """Test CLI with exclude patterns."""
-    # Create additional files to exclude
-    (sample_project / "test_file.py").write_text("# Test file")
-    (sample_project / "__pycache__").mkdir()
-    (sample_project / "__pycache__" / "cache.pyc").write_text("cache")
-
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, exclude_patterns="test_*,__pycache__/*")
-    captured = capsys.readouterr()
-
-    # Should process successfully with exclusions
-    assert len(captured.out) > 0
-
-
-def test_cli_error_handling_invalid_args():
-    """Test CLI error handling with invalid arguments."""
-    cli = UzpyCLI()
-
-    # Test with missing required argument
-    with pytest.raises(SystemExit):
-        cli.run()  # No edit path provided
-
-
-def test_cli_methods_include_flag(sample_project, capsys):
-    """Test CLI with methods include flag."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, methods_include=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should include methods in analysis
-    assert len(captured.out) > 0
-
-
-def test_cli_classes_include_flag(sample_project, capsys):
-    """Test CLI with classes include flag."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, classes_include=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should include classes in analysis
-    assert len(captured.out) > 0
-
-
-def test_cli_functions_include_flag(sample_project, capsys):
-    """Test CLI with functions include flag."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, functions_include=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should include functions in analysis
-    assert len(captured.out) > 0
-
-
-def test_cli_ref_path_different_from_edit(sample_project, capsys):
-    """Test CLI with different reference path."""
-    # Create a separate reference directory
-    ref_dir = sample_project / "ref"
-    ref_dir.mkdir()
-    (ref_dir / "reference.py").write_text("""
-from sample import hello_world
-hello_world()
-""")
-
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project / "sample.py"), ref=str(sample_project), dry_run=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should analyze with separate reference path
-    assert len(captured.out) > 0
-
-
-def test_cli_statistics_reporting(sample_project, capsys):
-    """Test that CLI reports statistics."""
-    cli = UzpyCLI()
-    cli.run(edit=str(sample_project), dry_run=True, verbose=True)
-    captured = capsys.readouterr()
-
-    # Should show statistics in output
-    assert any(keyword in captured.out for keyword in ["Summary", "Total", "Found", "Files", "Constructs"])
 </file>
 
 <file path="src/uzpy/parser/tree_sitter_parser.py">

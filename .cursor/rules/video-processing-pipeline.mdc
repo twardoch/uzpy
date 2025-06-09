@@ -1,21 +1,29 @@
 ---
-description: Documents core video processing pipeline functionality for frame sampling, background adaptation, and audio synchronization
-globs: src/uzpy/pipeline.py,src/uzpy/analyzer/*.py,src/uzpy/parser/*.py
+description: Documents the video processing pipeline components and integration points
+globs: src/uzpy/**/*.py
 alwaysApply: false
 ---
 
 
 # video-processing-pipeline
 
-After reviewing the provided specification, I do not see any specific video processing pipeline implementation details or related business logic documented. The specification focuses on code analysis tooling (uzpy) rather than video processing functionality.
+Based on the provided specification, there does not appear to be any dedicated video processing pipeline functionality documented. While the specification describes a robust pipeline for Python code analysis including parsing, analysis, and modification phases, it does not contain any components specifically related to:
 
-The available specification does not contain information about:
-- Frame sampling logic
-- Background adaptation algorithms  
-- Audio synchronization methods
-- Video pipeline architecture
+- Video frame processing
+- Background adaptation
+- Audio synchronization
+- Frame sampling
+- Video stream handling
 
-A new specification would need to be created to document these video processing aspects.
+The existing pipeline architecture could potentially be extended to support video processing, but the current implementation focuses entirely on Python code analysis and docstring management.
+
+The specification details a four-phase pipeline consisting of:
+1. Discovery Phase (finding Python files)
+2. Parsing Phase (code construct extraction)
+3. Analysis Phase (usage pattern detection)
+4. Modification Phase (docstring updates)
+
+None of these phases contain video-specific processing components.
 
 $END$
 

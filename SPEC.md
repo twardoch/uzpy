@@ -1,412 +1,264 @@
 # uzpy Technical Specification
 
-**Version**: 1.0.0  
-**Status**: Production Ready  
-**Last Updated**: December 2024
+**Version**: 0.1.0  
+**Status**: Beta - Functional Implementation  
+**Last Updated**: January 2025
 
-## Overview
+## 1. Overview
 
-uzpy is a Python static analysis tool that automatically tracks cross-file usage patterns and updates docstrings with "Used in:" documentation. It combines modern parsing technologies with proven static analysis techniques to provide accurate, safe code modification.
+uzpy is a Python static analysis tool that automatically tracks cross-file usage patterns and updates docstrings with "Used in:" documentation. It combines Tree-sitter parsing, hybrid Rope+Jedi analysis, and LibCST code modification to provide accurate, safe docstring updates.
 
-## Core Requirements
+## 2. Core Requirements
 
-### Functional Requirements
+### 2.1. Functional Requirements
 
-1. **Code Discovery**: Efficiently discover Python files while respecting `.gitignore` patterns
-2. **Construct Extraction**: Parse Python code to extract functions, classes, methods, and modules
-3. **Usage Analysis**: Find where each construct is used across the codebase  
-4. **Docstring Modification**: Update docstrings with usage information while preserving formatting
-5. **Error Recovery**: Handle syntax errors and partial analysis gracefully
+1. **Code Discovery**: Discover Python files while respecting `.gitignore` patterns and custom exclusions
+2. **Construct Extraction**: Parse Python code to extract functions, classes, methods, and modules with their existing docstrings
+3. **Usage Analysis**: Find where each construct is used across the codebase using hybrid analysis  
+4. **Docstring Modification**: Update docstrings with "Used in:" sections while preserving all formatting
+5. **Error Recovery**: Handle syntax errors, import failures, and analysis errors gracefully
 
-### Non-Functional Requirements
+### 2.2. Non-Functional Requirements
 
-1. **Performance**: Process 5,000-10,000 lines of code per second
-2. **Accuracy**: 95%+ accuracy for static imports, 70-80% for dynamic features
-3. **Safety**: Zero data loss during code modification
-4. **Compatibility**: Support Python 3.11+ codebases
-5. **Maintainability**: Modular architecture with clear separation of concerns
+1. **Safety**: Zero data loss during code modification with full formatting preservation
+2. **Compatibility**: Support Python 3.10+ codebases (actual minimum requirement)
+3. **Reliability**: Graceful degradation when analysis tools fail
+4. **Maintainability**: Clean modular architecture with separation of concerns
 
-## Architecture
+## 3. Architecture
 
-### High-Level Architecture
+### 3.1. High-Level Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
-│   (gitignore +   │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
-│   pathspec)      │    │  (AST + constructs)│   │  (usage finding)│    │   updates)      │
+│   (pathspec +    │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
+│   gitignore)     │    │  (AST extraction)│    │  (usage finding)│    │   updates)      │
 └─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-### Component Breakdown
+### 3.2. Component Implementation
 
-#### 1. CLI Interface (`cli.py`)
-- **Technology**: Python Fire + Rich Terminal UI
-- **Responsibilities**:
-  - Command-line argument parsing and validation
-  - User interaction and progress reporting
-  - Error handling and user feedback
-  - Configuration management
+#### 3.2.1. CLI Interface (`cli.py`)
+- **Technology**: Python Fire for automatic CLI generation
+- **Features**:
+  - `run` command for analysis and modification
+  - `clean` command for removing "Used in:" sections
+  - `test` command for dry-run mode
+  - Simple logging with loguru
+  - Basic error handling and user feedback
 
-#### 2. File Discovery (`discovery.py`)
+#### 3.2.2. File Discovery (`discovery.py`)
 - **Technology**: pathlib + pathspec (gitignore parsing)
-- **Responsibilities**:
+- **Features**:
   - Python file discovery with glob patterns
-  - Gitignore pattern respect
-  - Exclusion pattern handling
-  - Path normalization and validation
+  - `.gitignore` pattern respect with default exclusions
+  - Custom exclusion patterns support
+  - Efficient directory traversal with error handling
+  - File statistics reporting
 
-#### 3. Tree-sitter Parser (`parser/tree_sitter_parser.py`)
-- **Technology**: Tree-sitter + tree-sitter-python
-- **Responsibilities**:
+#### 3.2.3. Tree-sitter Parser (`parser/tree_sitter_parser.py`)
+- **Technology**: tree-sitter + tree-sitter-python
+- **Features**:
   - Fast AST parsing with error recovery
-  - Construct extraction (functions, classes, methods, modules)
-  - Docstring detection and extraction
-  - Line number and position tracking
+  - Extract functions, classes, methods, and modules
+  - Docstring detection and normalization
+  - Fully qualified name construction
+  - Line number tracking for each construct
 
-#### 4. Hybrid Analyzer (`analyzer/`)
-- **Technology**: Rope + Jedi libraries
+#### 3.2.4. Hybrid Analyzer (`analyzer/hybrid_analyzer.py`)
+- **Technology**: Rope + Jedi with fallback strategies
 - **Components**:
-  - `rope_analyzer.py` - Accurate cross-file reference finding
-  - `jedi_analyzer.py` - Fast symbol resolution and caching
-  - `hybrid_analyzer.py` - Combines both with fallback mechanisms
-- **Responsibilities**:
-  - Cross-file usage detection
-  - Import resolution
-  - Symbol resolution with context
-  - Confidence scoring for matches
+  - `rope_analyzer.py` - Accurate cross-file analysis
+  - `jedi_analyzer.py` - Fast symbol resolution
+  - `hybrid_analyzer.py` - Combines both with intelligent strategies
+- **Features**:
+  - Multiple analysis strategies (full_hybrid, jedi_primary, rope_only)
+  - Reference deduplication and merging
+  - Graceful fallback when analyzers fail
 
-#### 5. LibCST Modifier (`modifier/libcst_modifier.py`)
-- **Technology**: LibCST (Concrete Syntax Tree)
-- **Responsibilities**:
-  - Safe docstring modification
-  - Formatting preservation
-  - Comment preservation
-  - Existing usage information parsing and merging
+#### 3.2.5. LibCST Modifier (`modifier/libcst_modifier.py`)
+- **Technology**: LibCST for concrete syntax tree manipulation
+- **Features**:
+  - Safe docstring modification preserving all formatting
+  - "Used in:" section generation and management
+  - Existing usage information merging
+  - Relative path generation for references
+  - Complete formatting preservation
 
-## Data Models
+## 4. Data Models
 
-### Core Data Structures
+### 4.1. Core Data Structures
 
 ```python
 @dataclass
 class Construct:
-    """Represents a Python construct (function, class, method, etc.)"""
+    """Represents a Python construct with metadata"""
     name: str                    # Construct name
     type: ConstructType         # function, class, method, module
     file_path: Path            # Source file location
-    line_number: int           # Line number in source
+    line_number: int           # Line number (1-based)
     docstring: str | None      # Current docstring content
-    parent_class: str | None   # For methods, the containing class
+    full_name: str            # Fully qualified name
+    node: Node | None         # Tree-sitter node reference
 
 @dataclass  
 class Reference:
     """Represents a usage reference to a construct"""
     file_path: Path            # File where construct is used
     line_number: int           # Line number of usage
-    context: str               # Surrounding code context
-    confidence: float          # Confidence score (0.0-1.0)
-    reference_type: ReferenceType  # call, import, inheritance, etc.
-
-class UsageMap:
-    """Maps constructs to their usage references"""
-    data: dict[Construct, list[Reference]]
+    column_number: int = 0     # Column number of usage
+    context: str = ""          # Surrounding code context
 ```
 
-### File Processing Pipeline
+### 4.2. Pipeline Implementation
 
 ```python
-class AnalysisPipeline:
-    def run(self, edit_path: Path, ref_path: Path) -> UsageMap:
-        # Phase 1: Discovery
-        edit_files = self.discover_files(edit_path)
-        ref_files = self.discover_files(ref_path)
-        
-        # Phase 2: Parsing
-        constructs = self.parse_constructs(edit_files)
-        
-        # Phase 3: Analysis  
-        usage_map = self.analyze_usage(constructs, ref_files)
-        
-        # Phase 4: Modification
-        self.update_docstrings(usage_map)
-        
-        return usage_map
-```
-
-## Technology Stack Details
-
-### Tree-sitter Parser Configuration
-
-```python
-# Tree-sitter query for function definitions
-FUNCTION_QUERY = """
-(function_definition
-  name: (identifier) @function_name
-  body: (block
-    (expression_statement
-      (string) @docstring)?))
-"""
-
-# Tree-sitter query for class definitions  
-CLASS_QUERY = """
-(class_definition
-  name: (identifier) @class_name
-  body: (block
-    (expression_statement
-      (string) @docstring)?))
-"""
-```
-
-### Hybrid Analysis Strategy
-
-```python
-class HybridAnalyzer:
-    def find_usages(self, construct: Construct, ref_files: list[Path]) -> list[Reference]:
-        # Primary: Fast Jedi analysis
-        jedi_refs = self.jedi_analyzer.find_references(construct, ref_files)
-        
-        # Secondary: Accurate Rope analysis for verification
-        rope_refs = self.rope_analyzer.find_references(construct, ref_files)
-        
-        # Merge and deduplicate with confidence scoring
-        return self.merge_references(jedi_refs, rope_refs)
-```
-
-### LibCST Docstring Modification
-
-```python
-class DocstringModifier(cst.CSTTransformer):
-    def leave_FunctionDef(self, node: cst.FunctionDef, updated_node: cst.FunctionDef):
-        # Extract existing docstring
-        current_docstring = self.extract_docstring(node)
-        
-        # Parse existing "Used in:" section
-        cleaned_content, existing_paths, indent = self.parse_usage_section(current_docstring)
-        
-        # Merge with new usage information
-        new_docstring = self.merge_usage_info(cleaned_content, existing_paths, new_refs, indent)
-        
-        # Return updated node with new docstring
-        return self.update_docstring(updated_node, new_docstring)
-```
-
-## Performance Specifications
-
-### Benchmarks
-
-| Metric | Target | Actual (measured) |
-|--------|--------|-------------------|
-| Initial parsing | 5,000 lines/sec | 7,500 lines/sec |
-| Reference finding | 1,000 files/min | 1,200 files/min |
-| Docstring updates | 100 files/min | 150 files/min |
-| Memory usage | <1GB per 100k LOC | ~800MB per 100k LOC |
-
-### Scalability Limits
-
-- **Maximum codebase size**: 1M+ lines of code
-- **Maximum file count**: 10,000+ Python files  
-- **Maximum construct count**: 100,000+ functions/classes
-- **Concurrent processing**: Up to CPU core count
-
-## Error Handling Strategy
-
-### Error Categories
-
-1. **Parse Errors**: Syntax errors in Python files
-2. **Import Errors**: Missing modules or circular imports
-3. **Analysis Errors**: Reference resolution failures
-4. **Modification Errors**: File write permissions or LibCST failures
-
-### Recovery Mechanisms
-
-```python
-class ErrorRecovery:
-    def handle_parse_error(self, file_path: Path, error: SyntaxError):
-        # Log error and continue with other files
-        logger.warning(f"Syntax error in {file_path}: {error}")
-        return PartialResult(error=error, constructs=[])
+def run_analysis_and_modification(
+    edit_path: Path,
+    ref_path: Path,
+    exclude_patterns: list[str] | None,
+    dry_run: bool,
+) -> dict[Construct, list[Reference]]:
+    # Phase 1: Discovery
+    edit_files, ref_files = discover_files(edit_path, ref_path, exclude_patterns)
     
-    def handle_analysis_error(self, construct: Construct, error: Exception):
-        # Fall back to text-based search
-        return self.text_based_fallback(construct)
+    # Phase 2: Parsing
+    parser = TreeSitterParser()
+    all_constructs = []
+    for edit_file in edit_files:
+        constructs = parser.parse_file(edit_file)
+        all_constructs.extend(constructs)
     
-    def handle_modification_error(self, file_path: Path, error: Exception):
-        # Backup original file and retry
-        self.backup_file(file_path)
-        return self.retry_modification(file_path)
+    # Phase 3: Analysis
+    analyzer = HybridAnalyzer(ref_path, exclude_patterns)
+    usage_results = {}
+    for construct in all_constructs:
+        references = analyzer.find_usages(construct, ref_files)
+        usage_results[construct] = references
+    
+    # Phase 4: Modification
+    if not dry_run:
+        modifier = LibCSTModifier(project_root)
+        modifier.modify_files(usage_results)
+    
+    return usage_results
 ```
 
-## Quality Assurance
+## 5. CLI Reference
 
-### Testing Strategy
-
-1. **Unit Tests**: Individual component testing with pytest
-2. **Integration Tests**: End-to-end pipeline testing
-3. **Performance Tests**: Benchmark testing on large codebases
-4. **Regression Tests**: Version compatibility testing
-
-### Code Quality Standards
-
-- **Type Coverage**: 100% with mypy strict mode
-- **Test Coverage**: 90%+ line coverage
-- **Documentation**: Complete docstrings with usage tracking
-- **Linting**: Ruff with strict settings
-
-## Security Considerations
-
-### Code Execution Safety
-
-- **No code execution**: Pure static analysis only
-- **Sandboxed parsing**: Tree-sitter provides memory safety
-- **Path validation**: Prevent directory traversal attacks
-- **Input sanitization**: Validate all file paths and patterns
-
-### Data Protection
-
-- **No external connections**: Fully offline operation
-- **Minimal file access**: Read-only access to reference files
-- **Backup mechanism**: Automatic backup before modification
-- **Atomic operations**: All-or-nothing file modifications
-
-## Configuration Specification
-
-### Command Line Interface
+### 5.1. Actual Command Line Interface
 
 ```bash
-python -m uzpy [OPTIONS]
-
-Required:
-  --edit, -e PATH         Path to analyze and modify
-
-Optional:
-  --ref, -r PATH          Reference path for usage search (default: same as edit)
-  --verbose, -v           Enable detailed logging (default: False)
-  --dry-run              Show changes without modifying files (default: False)
-  --methods-include      Include method definitions (default: True)
-  --classes-include      Include class definitions (default: True)
-  --functions-include    Include function definitions (default: True)
-  --exclude-patterns     Comma-separated glob patterns to exclude
+python -m uzpy [COMMAND] [OPTIONS]
 ```
 
-### Configuration File Support (Future)
+### 5.2. Commands
 
-```toml
-# .uzpy.toml
-[uzpy]
-exclude_patterns = ["*/migrations/*", "*/tests/*"]
-include_constructs = ["functions", "classes", "methods"]
-confidence_threshold = 0.7
-backup_enabled = true
+| Command | Description |
+|---------|-------------|
+| `run` | Analyze and update docstrings (default) |
+| `clean` | Remove all "Used in:" sections |
+| `test` | Run in dry-run mode |
 
-[uzpy.output]
-format = "docstring"
-template = "Used in:\n{files}"
-relative_paths = true
+### 5.3. Constructor Options
+
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| `edit` | str/Path | Path to analyze and modify | current directory |
+| `ref` | str/Path | Reference path for usage search | same as edit |
+| `verbose` | bool | Enable detailed logging | False |
+| `xclude_patterns` | str/list | Exclude patterns (comma-separated) | None |
+| `methods_include` | bool | Include method definitions | True |
+| `classes_include` | bool | Include class definitions | True |
+| `functions_include` | bool | Include function definitions | True |
+
+### 5.4. Usage Examples
+
+```bash
+# Basic usage - analyze current directory
+python -m uzpy run
+
+# Analyze specific path
+python -m uzpy run --edit src/myproject/
+
+# Dry run with verbose output
+python -m uzpy test --edit src/ --verbose
+
+# Clean all "Used in:" sections
+python -m uzpy clean --edit src/
 ```
 
-## API Specification
+## 6. Dependencies
 
-### Public API
+### 6.1. Core Dependencies (from pyproject.toml)
 
-```python
-# Main entry point
-class UzpyCLI:
-    def run(self, edit: str, ref: str = None, verbose: bool = False, 
-            dry_run: bool = False) -> AnalysisResults
+- **Python**: 3.10+ (actual minimum requirement)
+- **tree-sitter**: >=0.20.0 (AST parsing)
+- **tree-sitter-python**: >=0.20.0 (Python grammar)
+- **rope**: >=1.7.0 (code analysis)
+- **jedi**: >=0.19.0 (symbol resolution)
+- **libcst**: >=1.0.0 (code modification)
+- **fire**: >=0.5.0 (CLI generation)
+- **rich**: >=13.0.0 (terminal output)
+- **loguru**: >=0.7.0 (logging)
+- **pathspec**: >=0.11.0 (gitignore parsing)
 
-# Core pipeline
-class AnalysisPipeline:
-    def analyze(self, edit_path: Path, ref_path: Path) -> UsageMap
-    def modify_files(self, usage_map: UsageMap) -> ModificationResults
+## 7. Implementation Details
 
-# Individual components
-class TreeSitterParser:
-    def parse_file(self, file_path: Path) -> list[Construct]
-    def extract_constructs(self, files: list[Path]) -> list[Construct]
+### 7.1. Error Handling Strategy
 
-class HybridAnalyzer:
-    def find_usages(self, constructs: list[Construct], 
-                   ref_files: list[Path]) -> UsageMap
+The tool implements graceful degradation at multiple levels:
 
-class LibCSTModifier:
-    def modify_files(self, usage_map: UsageMap) -> ModificationResults
-```
+1. **Parse Errors**: Continue with partial AST if Tree-sitter encounters syntax errors
+2. **Analyzer Failures**: Fall back from Rope to Jedi or text-based search
+3. **Modification Errors**: Log errors and continue with other files
+4. **File Access Errors**: Skip inaccessible files with warnings
 
-## Dependencies
+### 7.2. Analysis Strategies
 
-### Core Dependencies
+The hybrid analyzer uses different strategies based on the situation:
 
-- **Python**: 3.11+ (required for modern type hints)
-- **tree-sitter**: 0.20.1+ (AST parsing)
-- **tree-sitter-python**: 0.20.4+ (Python grammar)
-- **rope**: 1.7.0+ (refactoring and analysis)
-- **jedi**: 0.19.0+ (code intelligence)
-- **libcst**: 1.0.0+ (concrete syntax tree)
+- **full_hybrid**: Use both Rope and Jedi for small codebases (<50 constructs)
+- **jedi_primary**: Use Jedi first, verify complex cases with Rope
+- **rope_only**: Fall back when Jedi fails
 
-### CLI Dependencies
+### 7.3. Docstring Update Behavior
 
-- **fire**: 0.5.0+ (CLI generation)
-- **rich**: 13.0.0+ (terminal UI)
-- **loguru**: 0.7.0+ (logging)
-- **pathspec**: 0.11.0+ (gitignore parsing)
+The tool automatically:
+- Preserves all existing formatting and indentation
+- Merges existing "Used in:" sections with new findings
+- Excludes self-references (same file)
+- Uses relative paths from project root
+- Maintains proper docstring quote styles
 
-### Development Dependencies
+## 8. Testing
 
-- **pytest**: 7.0.0+ (testing)
-- **ruff**: 0.1.0+ (linting and formatting)
-- **mypy**: 1.0.0+ (type checking)
+The project includes comprehensive tests:
 
-## Deployment Considerations
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: Full pipeline testing
+- **Discovery Tests**: File discovery with various patterns
+- **Parser Tests**: AST extraction and construct identification
+- **Modifier Tests**: Docstring updating with formatting preservation
 
-### Installation Methods
+## 9. Limitations
 
-1. **Development Install**: `pip install -e .`
-2. **Production Install**: `pip install uzpy` (future PyPI release)
-3. **Docker**: Containerized deployment (future)
+1. **No Configuration Files**: No support for `.uzpy.toml` or similar configuration
+2. **Basic CLI**: Simple Fire-based CLI without Rich table outputs
+3. **No Performance Benchmarks**: No measured performance metrics
+4. **Limited Error Recovery**: Some edge cases may not be handled gracefully
+5. **No Watch Mode**: No real-time file monitoring
 
-### Platform Support
+## 10. Future Enhancements
 
-- **Linux**: Full support (primary development platform)
-- **macOS**: Full support
-- **Windows**: Basic support (path handling differences)
+Based on the current implementation, planned improvements include:
 
-### Integration Points
-
-1. **Pre-commit Hooks**: Git hook integration
-2. **CI/CD Pipelines**: GitHub Actions, Jenkins integration
-3. **IDE Extensions**: VS Code, PyCharm plugin support (future)
-
-## Version Compatibility
-
-### Python Versions
-
-- **Minimum**: Python 3.11 (required for modern type syntax)
-- **Tested**: Python 3.11, 3.12
-- **Future**: Python 3.13+ compatibility maintained
-
-### Backward Compatibility
-
-- **API Stability**: Semantic versioning for public API
-- **Configuration**: Backward compatible configuration parsing
-- **Output Format**: Stable docstring format across versions
-
-## Future Enhancements
-
-### Roadmap
-
-1. **v1.1.0**: Enhanced test suite and performance optimization
-2. **v1.2.0**: Configuration file support and output templates
-3. **v1.3.0**: Language Server Protocol integration
-4. **v2.0.0**: Plugin system and advanced features
-
-### Experimental Features
-
-- **Real-time analysis**: Watch mode with file system monitoring
-- **Visual reporting**: HTML/PDF reports with dependency graphs
-- **Multi-language support**: JavaScript, TypeScript analysis
-- **Cloud integration**: SaaS deployment and API access
+1. **Enhanced CLI**: Rich-based terminal output with progress bars and tables
+2. **Configuration Support**: `.uzpy.toml` configuration files
+3. **Performance Optimization**: Benchmarking and optimization for large codebases
+4. **Advanced Features**: Watch mode, plugin system, multi-language support
 
 ---
 
-This specification serves as the authoritative technical reference for uzpy development and maintenance. All implementation details should align with these specifications to ensure consistency and quality.
+This specification reflects the actual implementation as of January 2025. All documented features are functional and tested.
