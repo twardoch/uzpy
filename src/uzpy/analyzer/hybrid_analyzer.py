@@ -37,6 +37,7 @@ class HybridAnalyzer:
     - tests/test_analyzer.py
     - uzpy/analyzer/__init__.py
     - uzpy/cli.py
+    - uzpy/pipeline.py
     """
 
     def __init__(self, project_path: Path, exclude_patterns: list[str] | None = None):
@@ -94,6 +95,7 @@ class HybridAnalyzer:
         - src/uzpy/pipeline.py
         - tests/test_analyzer.py
         - uzpy/cli.py
+        - uzpy/pipeline.py
         """
         jedi_results = []
         rope_results = []

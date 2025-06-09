@@ -33,6 +33,7 @@ class FileDiscovery:
     - src/uzpy/pipeline.py
     - tests/test_discovery.py
     - uzpy/cli.py
+    - uzpy/pipeline.py
     """
 
     # Default patterns to exclude
@@ -95,6 +96,7 @@ class FileDiscovery:
         - src/uzpy/pipeline.py
         - tests/test_discovery.py
         - uzpy/cli.py
+        - uzpy/pipeline.py
         """
         if not root_path.exists():
             msg = f"Path does not exist: {root_path}"
@@ -270,6 +272,7 @@ def discover_files(
     - src/uzpy/pipeline.py
     - tests/test_discovery.py
     - uzpy/cli.py
+    - uzpy/pipeline.py
     """
     discovery = FileDiscovery(exclude_patterns)
 

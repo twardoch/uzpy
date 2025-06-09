@@ -37,6 +37,7 @@ class TreeSitterParser:
     - tests/test_parser.py
     - uzpy/cli.py
     - uzpy/parser/__init__.py
+    - uzpy/pipeline.py
     """
 
     def __init__(self):
@@ -111,6 +112,7 @@ class TreeSitterParser:
         - src/uzpy/pipeline.py
         - tests/test_parser.py
         - uzpy/cli.py
+        - uzpy/pipeline.py
         """
         logger.debug(f"Parsing file: {file_path}")
 

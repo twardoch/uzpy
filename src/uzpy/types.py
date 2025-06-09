@@ -34,6 +34,11 @@ class ConstructType(Enum):
     - tests/test_modifier.py
     - tests/test_parser.py
     - types.py
+    - uzpy/analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/jedi_analyzer.py
+    - uzpy/analyzer/rope_analyzer.py
+    - uzpy/parser/__init__.py
+    - uzpy/parser/tree_sitter_parser.py
     """
 
     FUNCTION = "function"
@@ -75,6 +80,13 @@ class Construct:
     - tests/test_analyzer.py
     - tests/test_modifier.py
     - types.py
+    - uzpy/analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/jedi_analyzer.py
+    - uzpy/analyzer/rope_analyzer.py
+    - uzpy/modifier/libcst_modifier.py
+    - uzpy/parser/__init__.py
+    - uzpy/parser/tree_sitter_parser.py
+    - uzpy/pipeline.py
     """
 
     name: str
@@ -177,6 +189,12 @@ class Reference:
     - src/uzpy/pipeline.py
     - tests/test_modifier.py
     - types.py
+    - uzpy/analyzer/hybrid_analyzer.py
+    - uzpy/analyzer/jedi_analyzer.py
+    - uzpy/analyzer/rope_analyzer.py
+    - uzpy/modifier/libcst_modifier.py
+    - uzpy/parser/__init__.py
+    - uzpy/pipeline.py
     """
 
     file_path: Path

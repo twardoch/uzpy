@@ -41,6 +41,7 @@ def run_analysis_and_modification(
     - cli.py
     - pipeline.py
     - src/uzpy/cli.py
+    - uzpy/cli.py
     """
     # Step 1: Discover files
     logger.info("Discovering files...")

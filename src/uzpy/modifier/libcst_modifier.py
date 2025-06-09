@@ -408,6 +408,7 @@ class LibCSTModifier:
     - tests/test_modifier.py
     - uzpy/cli.py
     - uzpy/modifier/__init__.py
+    - uzpy/pipeline.py
     """
 
     def __init__(self, project_root: Path):
@@ -483,6 +484,7 @@ class LibCSTModifier:
         - src/uzpy/pipeline.py
         - tests/test_modifier.py
         - uzpy/cli.py
+        - uzpy/pipeline.py
         """
         # Group constructs by file
         file_constructs: dict[Path, dict[Construct, list[Reference]]] = {}
