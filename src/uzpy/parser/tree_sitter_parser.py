@@ -12,6 +12,7 @@ Used in:
 """
 
 from pathlib import Path
+from typing import Optional
 
 import tree_sitter_python as tspython
 from loguru import logger

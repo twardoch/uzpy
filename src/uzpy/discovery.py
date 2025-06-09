@@ -12,7 +12,7 @@ Used in:
 
 from collections.abc import Iterator
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Optional, Union
 
 import pathspec
 from loguru import logger

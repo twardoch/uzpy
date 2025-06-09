@@ -14,9 +14,7 @@ from uzpy.parser import ConstructType, TreeSitterParser
 
 @pytest.fixture
 def sample_python_file():
-    """Create a sample Python file for testing.
-
-"""
+    """Create a sample Python file for testing."""
     content = '''"""Module docstring for testing."""
 
 def standalone_function():
@@ -56,18 +54,14 @@ def another_function():
 
 
 def test_parser_initialization():
-    """Test that the parser initializes correctly.
-
-"""
+    """Test that the parser initializes correctly."""
     parser = TreeSitterParser()
     assert parser.language is not None
     assert parser.parser is not None
 
 
 def test_parse_file_basic(sample_python_file):
-    """Test basic file parsing functionality.
-
-"""
+    """Test basic file parsing functionality."""
     parser = TreeSitterParser()
     constructs = parser.parse_file(sample_python_file)
 
@@ -83,9 +77,7 @@ def test_parse_file_basic(sample_python_file):
 
 
 def test_construct_extraction(sample_python_file):
-    """Test detailed construct extraction.
-
-"""
+    """Test detailed construct extraction."""
     parser = TreeSitterParser()
     constructs = parser.parse_file(sample_python_file)
 
@@ -132,9 +124,7 @@ def test_construct_extraction(sample_python_file):
 
 
 def test_line_numbers(sample_python_file):
-    """Test that line numbers are correctly extracted.
-
-"""
+    """Test that line numbers are correctly extracted."""
     parser = TreeSitterParser()
     constructs = parser.parse_file(sample_python_file)
 
@@ -154,9 +144,7 @@ def test_line_numbers(sample_python_file):
 
 
 def test_parser_statistics(sample_python_file):
-    """Test parser statistics functionality.
-
-"""
+    """Test parser statistics functionality."""
     parser = TreeSitterParser()
     stats = parser.get_statistics(sample_python_file)
 
@@ -170,9 +158,7 @@ def test_parser_statistics(sample_python_file):
 
 
 def test_parser_with_syntax_error():
-    """Test parser behavior with syntax errors.
-
-"""
+    """Test parser behavior with syntax errors."""
     content = '''
 def broken_function(
     # Missing closing parenthesis
@@ -201,9 +187,7 @@ def good_function():
 
 
 def test_parser_empty_file():
-    """Test parser with empty file.
-
-"""
+    """Test parser with empty file."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write("")
         f.flush()
@@ -219,9 +203,7 @@ def test_parser_empty_file():
 
 
 def test_parser_nonexistent_file():
-    """Test parser with non-existent file.
-
-"""
+    """Test parser with non-existent file."""
     parser = TreeSitterParser()
 
     with pytest.raises(FileNotFoundError):

@@ -8,6 +8,7 @@ out of cli.py to separate user interaction from core functionality.
 """
 
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 
@@ -23,6 +24,7 @@ def run_analysis_and_modification(
     ref_path: Path,
     exclude_patterns: list[str] | None,
     dry_run: bool,
+    use_modern_analyzer: bool = True,
 ) -> dict[Construct, list[Reference]]:
     """
     Orchestrates the full uzpy pipeline: discovery, parsing, analysis,
@@ -86,11 +88,20 @@ def run_analysis_and_modification(
     # Step 3: Analyze usages
     logger.info("Finding references...")
     try:
-        # Stack analyzers: base -> cached -> parallel
-        base_analyzer = HybridAnalyzer(ref_path, exclude_patterns)
-        cached_analyzer = CachedAnalyzer(base_analyzer)
-        analyzer = ParallelAnalyzer(cached_analyzer)
-        logger.debug("Initialized parallel cached hybrid analyzer")
+        if use_modern_analyzer:
+            # Use modern analyzer stack
+            from uzpy.analyzer import ModernHybridAnalyzer
+
+            base_analyzer = ModernHybridAnalyzer(ref_path, exclude_patterns)
+            cached_analyzer = CachedAnalyzer(base_analyzer)
+            analyzer = ParallelAnalyzer(cached_analyzer)
+            logger.debug("Initialized modern parallel cached analyzer")
+        else:
+            # Use traditional analyzer stack
+            base_analyzer = HybridAnalyzer(ref_path, exclude_patterns)
+            cached_analyzer = CachedAnalyzer(base_analyzer)
+            analyzer = ParallelAnalyzer(cached_analyzer)
+            logger.debug("Initialized traditional parallel cached analyzer")
     except Exception as e:
         logger.error(f"Failed to initialize analyzer: {e}")
         raise
@@ -102,16 +113,13 @@ def run_analysis_and_modification(
     # Use parallel batch processing for better performance
     def progress_callback(completed, total):
         logger.info(f"Progress: {completed}/{total} constructs analyzed")
-    
-    usage_results = analyzer.find_usages_batch(
-        all_constructs, 
-        ref_files,
-        progress_callback=progress_callback
-    )
+
+    usage_results = analyzer.find_usages_batch(all_constructs, ref_files, progress_callback=progress_callback)
 
     # Summary of analysis results
     constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
     total_references = sum(len(refs) for refs in usage_results.values())
+    total_constructs = len(all_constructs)
     logger.info(f"Found usages for {constructs_with_refs}/{total_constructs} constructs")
     logger.info(f"Total references found: {total_references}")
 

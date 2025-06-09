@@ -16,6 +16,7 @@ Used in:
 
 import sys
 from pathlib import Path
+from typing import Optional, Union
 
 import fire
 from loguru import logger
@@ -76,9 +77,7 @@ class UzpyCLI:
         self.verbose = bool(verbose)
 
     def test(self) -> None:
-        """Run analysis in dry-run mode for testing.
-
-"""
+        """Run analysis in dry-run mode for testing."""
         self.run(_dry_run=True)
 
     def run(self, _dry_run: bool = False) -> None:
@@ -201,4 +200,13 @@ def cli() -> None:
     - src/uzpy/__main__.py
     - uzpy/__main__.py
     """
-    fire.Fire(UzpyCLI)
+    import os
+
+    # Check if modern CLI is requested via environment variable
+    if os.environ.get("UZPY_MODERN_CLI", "").lower() in ("1", "true", "yes"):
+        from uzpy.cli_modern import cli as modern_cli
+
+        modern_cli()
+    else:
+        # Use traditional Fire CLI for backwards compatibility
+        fire.Fire(UzpyCLI)
