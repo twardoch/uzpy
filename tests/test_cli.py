@@ -14,7 +14,9 @@ from uzpy.cli import UzpyCLI
 
 @pytest.fixture
 def sample_project():
-    """Create a sample project for testing CLI."""
+    """Create a sample project for testing CLI.
+
+"""
     project_dir = Path(tempfile.mkdtemp())
 
     # Create a simple Python file
@@ -43,13 +45,17 @@ class SampleClass:
 
 
 def test_cli_init():
-    """Test CLI initialization."""
+    """Test CLI initialization.
+
+"""
     cli = UzpyCLI()
     assert cli.edit is not None
 
 
 def test_cli_with_nonexistent_path(capsys):
-    """Test CLI with non-existent path."""
+    """Test CLI with non-existent path.
+
+"""
     cli = UzpyCLI(edit="/nonexistent/path")
     cli.run()
     captured = capsys.readouterr()
@@ -57,7 +63,9 @@ def test_cli_with_nonexistent_path(capsys):
 
 
 def test_cli_dry_run(sample_project, capsys):
-    """Test CLI dry run functionality."""
+    """Test CLI dry run functionality.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, verbose=True)
     captured = capsys.readouterr()
@@ -69,7 +77,9 @@ def test_cli_dry_run(sample_project, capsys):
 
 
 def test_cli_single_file(sample_project, capsys):
-    """Test CLI with single file."""
+    """Test CLI with single file.
+
+"""
     sample_file = sample_project / "sample.py"
     cli = UzpyCLI()
     cli.run(edit=str(sample_file), dry_run=True)
@@ -80,7 +90,9 @@ def test_cli_single_file(sample_project, capsys):
 
 
 def test_cli_verbose_output(sample_project, capsys):
-    """Test CLI verbose output."""
+    """Test CLI verbose output.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, verbose=True)
     captured = capsys.readouterr()
@@ -92,7 +104,9 @@ def test_cli_verbose_output(sample_project, capsys):
 
 
 def test_cli_with_exclude_patterns(sample_project, capsys):
-    """Test CLI with exclude patterns."""
+    """Test CLI with exclude patterns.
+
+"""
     # Create additional files to exclude
     (sample_project / "test_file.py").write_text("# Test file")
     (sample_project / "__pycache__").mkdir()
@@ -107,7 +121,9 @@ def test_cli_with_exclude_patterns(sample_project, capsys):
 
 
 def test_cli_error_handling_invalid_args():
-    """Test CLI error handling with invalid arguments."""
+    """Test CLI error handling with invalid arguments.
+
+"""
     cli = UzpyCLI()
 
     # Test with missing required argument
@@ -116,7 +132,9 @@ def test_cli_error_handling_invalid_args():
 
 
 def test_cli_methods_include_flag(sample_project, capsys):
-    """Test CLI with methods include flag."""
+    """Test CLI with methods include flag.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, methods_include=True, verbose=True)
     captured = capsys.readouterr()
@@ -126,7 +144,9 @@ def test_cli_methods_include_flag(sample_project, capsys):
 
 
 def test_cli_classes_include_flag(sample_project, capsys):
-    """Test CLI with classes include flag."""
+    """Test CLI with classes include flag.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, classes_include=True, verbose=True)
     captured = capsys.readouterr()
@@ -136,7 +156,9 @@ def test_cli_classes_include_flag(sample_project, capsys):
 
 
 def test_cli_functions_include_flag(sample_project, capsys):
-    """Test CLI with functions include flag."""
+    """Test CLI with functions include flag.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, functions_include=True, verbose=True)
     captured = capsys.readouterr()
@@ -146,7 +168,9 @@ def test_cli_functions_include_flag(sample_project, capsys):
 
 
 def test_cli_ref_path_different_from_edit(sample_project, capsys):
-    """Test CLI with different reference path."""
+    """Test CLI with different reference path.
+
+"""
     # Create a separate reference directory
     ref_dir = sample_project / "ref"
     ref_dir.mkdir()
@@ -164,7 +188,9 @@ hello_world()
 
 
 def test_cli_statistics_reporting(sample_project, capsys):
-    """Test that CLI reports statistics."""
+    """Test that CLI reports statistics.
+
+"""
     cli = UzpyCLI()
     cli.run(edit=str(sample_project), dry_run=True, verbose=True)
     captured = capsys.readouterr()

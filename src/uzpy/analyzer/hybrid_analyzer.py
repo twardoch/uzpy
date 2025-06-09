@@ -173,6 +173,7 @@ class HybridAnalyzer:
 
         Used in:
         - analyzer/hybrid_analyzer.py
+        - tests/test_analyzer.py
         """
         logger.info(f"Starting hybrid analysis of {len(constructs)} constructs")
         start_time = time.time()

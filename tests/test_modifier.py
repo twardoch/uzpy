@@ -15,7 +15,9 @@ from uzpy.parser import Construct, ConstructType, Reference
 
 @pytest.fixture
 def sample_python_file_with_docstrings():
-    """Create a sample Python file with existing docstrings for testing."""
+    """Create a sample Python file with existing docstrings for testing.
+
+"""
     content = '''"""Module docstring."""
 
 def function_with_docstring():
@@ -57,7 +59,9 @@ def function_without_docstring():
 
 @pytest.fixture
 def sample_constructs_and_references(sample_python_file_with_docstrings):
-    """Create sample constructs and references for testing."""
+    """Create sample constructs and references for testing.
+
+"""
     constructs = [
         Construct(
             name="function_with_docstring",
@@ -123,14 +127,18 @@ def sample_constructs_and_references(sample_python_file_with_docstrings):
 
 
 def test_libcst_modifier_initialization():
-    """Test LibCST modifier initialization."""
+    """Test LibCST modifier initialization.
+
+"""
     project_root = Path("/fake/project")
     modifier = LibCSTModifier(project_root)
     assert modifier.project_root == project_root
 
 
 def test_docstring_modifier_initialization():
-    """Test DocstringModifier initialization."""
+    """Test DocstringModifier initialization.
+
+"""
     project_root = Path("/fake/project")
     usage_map = {}
     modifier = DocstringModifier(usage_map, project_root)
@@ -139,7 +147,9 @@ def test_docstring_modifier_initialization():
 
 
 def test_extract_existing_usage_paths():
-    """Test extraction of existing usage paths from docstrings."""
+    """Test extraction of existing usage paths from docstrings.
+
+"""
     modifier = DocstringModifier({}, Path("/fake"))
 
     # Test docstring with existing usage
@@ -159,7 +169,9 @@ def test_extract_existing_usage_paths():
 
 
 def test_extract_existing_usage_paths_no_usage():
-    """Test extraction when no existing usage section exists."""
+    """Test extraction when no existing usage section exists.
+
+"""
     modifier = DocstringModifier({}, Path("/fake"))
 
     content = """Function description without usage info."""
@@ -172,7 +184,9 @@ def test_extract_existing_usage_paths_no_usage():
 
 
 def test_update_docstring_content_with_existing_usage():
-    """Test updating docstring content that has existing usage info."""
+    """Test updating docstring content that has existing usage info.
+
+"""
     modifier = DocstringModifier({}, Path("/fake/project"))
 
     current_docstring = '''"""Function with existing usage.
@@ -198,7 +212,9 @@ def test_update_docstring_content_with_existing_usage():
 
 
 def test_update_docstring_content_without_existing_usage():
-    """Test updating docstring content that has no existing usage info."""
+    """Test updating docstring content that has no existing usage info.
+
+"""
     modifier = DocstringModifier({}, Path("/fake/project"))
 
     current_docstring = '''"""Function without existing usage."""'''
@@ -219,7 +235,9 @@ def test_update_docstring_content_without_existing_usage():
 
 
 def test_create_new_docstring():
-    """Test creating new docstring with usage information."""
+    """Test creating new docstring with usage information.
+
+"""
     modifier = DocstringModifier({}, Path("/fake/project"))
 
     references = [
@@ -244,7 +262,9 @@ def test_create_new_docstring():
 
 
 def test_modify_file_integration(sample_python_file_with_docstrings, sample_constructs_and_references):
-    """Test full file modification integration."""
+    """Test full file modification integration.
+
+"""
     constructs, usage_map = sample_constructs_and_references
     project_root = sample_python_file_with_docstrings.parent
 
@@ -274,7 +294,9 @@ def test_modify_file_integration(sample_python_file_with_docstrings, sample_cons
 
 
 def test_modify_files_batch(sample_python_file_with_docstrings, sample_constructs_and_references):
-    """Test batch file modification."""
+    """Test batch file modification.
+
+"""
     constructs, usage_map = sample_constructs_and_references
     project_root = sample_python_file_with_docstrings.parent
 
@@ -290,7 +312,9 @@ def test_modify_files_batch(sample_python_file_with_docstrings, sample_construct
 
 
 def test_indentation_preservation():
-    """Test that indentation is preserved correctly."""
+    """Test that indentation is preserved correctly.
+
+"""
     modifier = DocstringModifier({}, Path("/fake/project"))
 
     # Test with indented docstring
@@ -317,7 +341,9 @@ def test_indentation_preservation():
 
 
 def test_relative_path_calculation():
-    """Test that paths are calculated relative to project root."""
+    """Test that paths are calculated relative to project root.
+
+"""
     project_root = Path("/fake/project")
     modifier = DocstringModifier({}, project_root)
 
@@ -344,7 +370,9 @@ def test_relative_path_calculation():
 
 
 def test_error_handling_invalid_syntax():
-    """Test error handling with invalid Python syntax."""
+    """Test error handling with invalid Python syntax.
+
+"""
     content = """
 def broken_function(
     # Missing closing parenthesis
@@ -365,7 +393,9 @@ def broken_function(
 
 
 def test_no_changes_needed():
-    """Test behavior when no changes are needed."""
+    """Test behavior when no changes are needed.
+
+"""
     content = '''def simple_function():
     """Simple function."""
     pass
