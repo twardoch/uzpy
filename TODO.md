@@ -1,56 +1,37 @@
 # TODO
 
-## ✅ COMPLETE: DocString Usage Tracking Implementation
+✅ **COMPLETELY FIXED**: Exclusion patterns now work correctly at all levels!
 
-All core functionality has been successfully implemented:
+The issue had **three** parts that needed to be fixed:
 
-### ✅ Core Features Implemented:
-- **CLI Integration**: Complete integration with HybridAnalyzer to find cross-file references
-- **LibCST Modifier**: Safe docstring modification preserving all formatting and comments
-- **Usage Parsing**: Smart parsing of existing "Used in:" sections to merge with new findings
-- **Progress Reporting**: Rich terminal interface with progress bars and summary statistics  
-- **Error Handling**: Graceful fallbacks and comprehensive error handling throughout
-- **Relative Path Calculation**: Clean relative paths from reference directory
-- **Indentation Preservation**: Perfect indentation matching for closing quotes and content
+## 1. File Discovery Pattern Matching Bug
+- **Problem**: The `_is_excluded` method in `discovery.py` was using absolute paths instead of relative paths for pattern matching with pathspec
+- **Fix**: 
+  - Store root_path in FileDiscovery during `find_python_files`
+  - Convert paths to relative paths before pattern matching  
+  - Support both simple patterns (`_private`) and glob patterns (`_private/**`)
 
-### ✅ Advanced Features:
-- **Existing Usage Merge**: Parses existing "Used in:" sections and merges with new references
-- **Path Deduplication**: Eliminates duplicate absolute/relative paths
-- **Multiple Format Support**: Handles both single and triple-quoted docstrings
-- **Context-Aware Indentation**: Detects and preserves existing indentation patterns
-- **Proper Spacing**: Maintains extra newlines for readable formatting
+## 2. CLI Reference File Discovery Bug
+- **Problem**: The `run()` method was creating a new `FileDiscovery` instance without passing exclusion patterns when getting reference files for the analyzer (line 182)
+- **Fix**: Pass `self.xclude_patterns` to the FileDiscovery instance for reference files
 
-### ✅ Code Quality:
-- **Type Hints**: Full type coverage for all functions and classes
-- **Error Recovery**: Robust handling of parsing failures and edge cases  
-- **Logging**: Comprehensive debug logging with loguru
-- **Testing**: All functionality covered by pytest
-- **Documentation**: Complete docstrings with usage tracking
+## 3. Rope Analyzer Internal Discovery Bug
+- **Problem**: Rope's `Project` class internally discovers and analyzes ALL files in the project directory, regardless of the files we pass to `find_usages()`
+- **Fix**: 
+  - Modified `RopeAnalyzer` to accept `exclude_patterns` parameter
+  - Configure Rope's `ignored_resources` preference to exclude `_private*` patterns
+  - Pass exclusion patterns from CLI → HybridAnalyzer → RopeAnalyzer
 
-## 🎯 Final Status: READY FOR PRODUCTION 🚀
+## Changes Made:
+- **discovery.py**: Fixed relative path pattern matching
+- **cli.py**: Pass exclusion patterns to reference file discovery AND analyzer
+- **rope_analyzer.py**: Accept and use exclusion patterns for Rope project initialization
+- **hybrid_analyzer.py**: Pass exclusion patterns to RopeAnalyzer
 
-The uzpy tool is now a fully functional Python code analysis and documentation system that:
-
-1. **Discovers** Python constructs across an entire codebase
-2. **Analyzes** cross-file usage patterns with hybrid Rope+Jedi analysis
-3. **Updates** docstrings automatically while preserving all formatting
-4. **Merges** existing and new usage information intelligently
-5. **Reports** progress and statistics through beautiful CLI interface
-
-### Example Output:
-```python
-def my_function():
-    """
-    Function description here.
-    
-    Args:
-        param: Description
-        
-    Used in:
-    - existing/module.py
-    - new/discovery.py
-    - another/file.py
-    """
+## Result:
+The command now works correctly without any `_private` directory analysis:
+```bash
+uzpy run -e "/Users/adam/Developer/vcs/github.twardoch/pub/twat-packages/_good/twat/plugins/repos" -x _private,.venv
 ```
 
-**Mission accomplished!** ✨ 
+Tests added to verify all levels of exclusion work in `tests/test_discovery.py`.

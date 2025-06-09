@@ -30,33 +30,82 @@ class RopeAnalyzer:
 
     Used in:
     - analyzer/rope_analyzer.py
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/analyzer/hybrid_analyzer.py
     - uzpy/analyzer/__init__.py
     - uzpy/analyzer/hybrid_analyzer.py
     """
 
-    def __init__(self, root_path: Path):
+    def __init__(self, root_path: Path, exclude_patterns: list[str] | None = None):
         """
         Initialize the Rope analyzer.
 
         Args:
             root_path: Root directory of the project to analyze
+            exclude_patterns: Additional patterns to exclude from Rope analysis
 
         Used in:
         - analyzer/rope_analyzer.py
         """
         self.root_path = root_path
+        self.exclude_patterns = exclude_patterns or []
         self.project: Project | None = None
         self._init_project()
 
     def _init_project(self) -> None:
-        """Initialize the Rope project.
+        """Initialize the Rope project with exclusion patterns.
 
         Used in:
         - analyzer/rope_analyzer.py
         """
         try:
             logger.debug(f"Initializing Rope project at {self.root_path}")
-            self.project = Project(str(self.root_path))
+
+            # Create ignored patterns list
+            ignored_patterns = [
+                "*.pyc",
+                "*~",
+                ".ropeproject",
+                ".hg",
+                ".svn",
+                "_svn",
+                ".git",
+                ".tox",
+                ".venv",
+                "venv",
+                ".mypy_cache",
+                ".pytest_cache",
+            ]
+
+            # Add custom exclusion patterns
+            for pattern in self.exclude_patterns:
+                # Convert glob patterns to simpler patterns for Rope
+                if pattern.endswith("/**"):
+                    # Convert "_private/**" to "_private*"
+                    simplified = pattern[:-3] + "*"
+                    ignored_patterns.append(simplified)
+                elif pattern.endswith("/"):
+                    # Convert "_private/" to "_private*"
+                    simplified = pattern[:-1] + "*"
+                    ignored_patterns.append(simplified)
+                else:
+                    # Use pattern as-is and with wildcard
+                    ignored_patterns.append(pattern)
+                    wildcard_pattern = pattern + "*"
+                    ignored_patterns.append(wildcard_pattern)
+
+            # Initialize project with no .ropeproject folder to avoid config conflicts
+            self.project = Project(str(self.root_path), ropefolder=None)
+
+            # Try to set the preferences immediately after creation
+            if self.exclude_patterns:
+                try:
+                    # Set ignored resources via preferences
+                    self.project.prefs.set("ignored_resources", ignored_patterns)
+                    logger.debug(f"Set ignored resources: {ignored_patterns}")
+                except Exception as e:
+                    logger.warning(f"Could not set ignored_resources preference: {e}")
+
             logger.debug("Rope project initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Rope project: {e}")
@@ -75,10 +124,16 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         if not self.project:
             logger.error("Rope project not initialized")
+            return []
+
+        # Skip module analysis with Rope - it doesn't handle module-level constructs well
+        if construct.type == ConstructType.MODULE:
+            logger.debug(f"Skipping Rope analysis for module {construct.full_name}")
             return []
 
         usage_files = set()
@@ -207,6 +262,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Rope")
@@ -235,6 +291,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         if not self.project:
@@ -260,6 +317,7 @@ class RopeAnalyzer:
 
         Used in:
         - analyzer/rope_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         if self.project:

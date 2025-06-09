@@ -29,25 +29,30 @@ class HybridAnalyzer:
 
     Used in:
     - analyzer/hybrid_analyzer.py
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/cli.py
+    - tests/test_analyzer.py
     - uzpy/analyzer/__init__.py
     - uzpy/cli.py
     """
 
-    def __init__(self, project_path: Path):
+    def __init__(self, project_path: Path, exclude_patterns: list[str] | None = None):
         """
         Initialize the hybrid analyzer.
 
         Args:
             project_path: Root directory of the project to analyze
+            exclude_patterns: Additional patterns to exclude from analysis
 
         Used in:
         - analyzer/hybrid_analyzer.py
         """
         self.project_path = project_path
+        self.exclude_patterns = exclude_patterns or []
 
         # Initialize both analyzers
         try:
-            self.rope_analyzer = RopeAnalyzer(project_path)
+            self.rope_analyzer = RopeAnalyzer(project_path, exclude_patterns)
             self.rope_available = True
         except Exception as e:
             logger.warning(f"Rope analyzer initialization failed: {e}")
@@ -81,6 +86,8 @@ class HybridAnalyzer:
 
         Used in:
         - analyzer/hybrid_analyzer.py
+        - src/uzpy/cli.py
+        - tests/test_analyzer.py
         - uzpy/cli.py
         """
         jedi_results = set()

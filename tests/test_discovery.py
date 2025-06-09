@@ -87,3 +87,69 @@ def test_custom_exclude_patterns(temp_project):
     file_names = {f.name for f in files}
     assert "secret.py" not in file_names
     assert "main.py" in file_names  # Other files still found
+
+
+def test_private_folder_exclusion(temp_project):
+    """Test that _private folder exclusion works correctly."""
+    # Create _private folder with files
+    private_dir = temp_project / "_private"
+    private_dir.mkdir()
+    (private_dir / "secret.py").write_text("# Private secret file")
+    (private_dir / "config.py").write_text("# Private config file")
+
+    # Create a normal file
+    (temp_project / "public.py").write_text("# Public file")
+
+    # Test with _private pattern
+    discovery = FileDiscovery(exclude_patterns=["_private"])
+    files = list(discovery.find_python_files(temp_project))
+
+    file_names = {f.name for f in files}
+    relative_paths = {f.relative_to(temp_project) for f in files}
+
+    # Should not find files in _private folder
+    assert "secret.py" not in file_names
+    assert "config.py" not in file_names
+
+    # Should find normal files
+    assert "public.py" in file_names
+    assert "main.py" in file_names
+
+    # Check no paths start with _private
+    for path in relative_paths:
+        assert not str(path).startswith("_private")
+
+
+def test_private_folder_exclusion_glob_pattern(temp_project):
+    """Test that _private/** folder exclusion works correctly."""
+    # Create _private folder with files
+    private_dir = temp_project / "_private"
+    private_dir.mkdir()
+    (private_dir / "secret.py").write_text("# Private secret file")
+
+    # Create subfolder in _private
+    private_subdir = private_dir / "subdir"
+    private_subdir.mkdir()
+    (private_subdir / "deep_secret.py").write_text("# Deep private file")
+
+    # Create a normal file
+    (temp_project / "public.py").write_text("# Public file")
+
+    # Test with _private/** pattern
+    discovery = FileDiscovery(exclude_patterns=["_private/**"])
+    files = list(discovery.find_python_files(temp_project))
+
+    file_names = {f.name for f in files}
+    relative_paths = {f.relative_to(temp_project) for f in files}
+
+    # Should not find files in _private folder
+    assert "secret.py" not in file_names
+    assert "deep_secret.py" not in file_names
+
+    # Should find normal files
+    assert "public.py" in file_names
+    assert "main.py" in file_names
+
+    # Check no paths start with _private
+    for path in relative_paths:
+        assert not str(path).startswith("_private")

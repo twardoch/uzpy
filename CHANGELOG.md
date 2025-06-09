@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Complete Exclusion Pattern Fix**: Fixed exclusion patterns at all three levels of analysis
+  - **File Discovery Level**: Fixed `_is_excluded` method in `discovery.py` to use relative paths instead of absolute paths for pathspec matching
+  - **CLI Reference Discovery Level**: Fixed CLI bug where reference file discovery didn't use exclusion patterns (line 182 in cli.py)
+  - **Rope Analyzer Level**: Fixed Rope's internal file discovery by configuring `ignored_resources` preference to exclude custom patterns
+  - Modified RopeAnalyzer and HybridAnalyzer to accept and use exclusion patterns
+  - Added comprehensive tests for `_private` folder exclusion patterns
+  - Now completely excludes directories like `_private` and `.venv` from all levels of analysis
+
 ### Planned
 - Comprehensive test suite expansion
 - Performance optimization for large codebases

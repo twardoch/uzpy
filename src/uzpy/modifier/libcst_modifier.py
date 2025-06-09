@@ -28,6 +28,8 @@ class DocstringModifier(cst.CSTTransformer):
 
     Used in:
     - modifier/libcst_modifier.py
+    - src/uzpy/modifier/__init__.py
+    - tests/test_modifier.py
     - uzpy/modifier/__init__.py
     """
 
@@ -202,6 +204,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         Used in:
         - modifier/libcst_modifier.py
+        - tests/test_modifier.py
         """
         # Remove quotes from current docstring
         quote_char = '"""' if current_docstring.startswith('"""') else '"'
@@ -274,6 +277,8 @@ class DocstringModifier(cst.CSTTransformer):
         Returns:
             Tuple of (cleaned_content, existing_paths_set, original_indent)
 
+        Used in:
+        - tests/test_modifier.py
         """
         # Pattern to match "Used in:" section with paths
         pattern = r"(\n\s*)(Used in:(?:\s*\n(?:\s*-\s*[^\n]+\n?)*)\s*)"
@@ -312,6 +317,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         Used in:
         - modifier/libcst_modifier.py
+        - tests/test_modifier.py
         """
         # For new docstrings, use standard indentation (4 spaces)
         base_indent = "    "
@@ -393,6 +399,9 @@ class LibCSTModifier:
 
     Used in:
     - modifier/libcst_modifier.py
+    - src/uzpy/cli.py
+    - src/uzpy/modifier/__init__.py
+    - tests/test_modifier.py
     - uzpy/cli.py
     - uzpy/modifier/__init__.py
     """
@@ -422,6 +431,7 @@ class LibCSTModifier:
 
         Used in:
         - modifier/libcst_modifier.py
+        - tests/test_modifier.py
         """
         try:
             # Read the source code
@@ -464,6 +474,8 @@ class LibCSTModifier:
 
         Used in:
         - modifier/libcst_modifier.py
+        - src/uzpy/cli.py
+        - tests/test_modifier.py
         - uzpy/cli.py
         """
         # Group constructs by file
@@ -500,6 +512,9 @@ class DocstringCleaner(cst.CSTTransformer):
 
     This transformer preserves all formatting and comments while removing
     any 'Used in:' sections from docstrings.
+
+    Used in:
+    - src/uzpy/modifier/__init__.py
     """
 
     def __init__(self):
@@ -609,6 +624,10 @@ class LibCSTCleaner:
 
     Handles file reading, parsing, transformation, and writing while
     preserving formatting and handling errors gracefully.
+
+    Used in:
+    - src/uzpy/cli.py
+    - src/uzpy/modifier/__init__.py
     """
 
     def __init__(self, project_root: Path):
@@ -617,6 +636,7 @@ class LibCSTCleaner:
 
         Args:
             project_root: Root directory of the project
+
         """
         self.project_root = project_root
 
@@ -629,6 +649,7 @@ class LibCSTCleaner:
 
         Returns:
             True if the file was successfully cleaned, False otherwise
+
         """
         try:
             # Read the source code
@@ -667,6 +688,9 @@ class LibCSTCleaner:
 
         Returns:
             Dictionary mapping file paths to success status
+
+        Used in:
+        - src/uzpy/cli.py
         """
         logger.info(f"Cleaning 'Used in:' sections from {len(file_paths)} files")
 

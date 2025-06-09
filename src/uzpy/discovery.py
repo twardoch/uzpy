@@ -12,6 +12,7 @@ Used in:
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import ClassVar
 
 import pathspec
 from loguru import logger
@@ -26,11 +27,13 @@ class FileDiscovery:
 
     Used in:
     - discovery.py
+    - src/uzpy/cli.py
+    - tests/test_discovery.py
     - uzpy/cli.py
     """
 
     # Default patterns to exclude
-    DEFAULT_EXCLUDE_PATTERNS = [
+    DEFAULT_EXCLUDE_PATTERNS: ClassVar[list[str]] = [
         ".git/**",
         "__pycache__/**",
         "*.pyc",
@@ -64,6 +67,7 @@ class FileDiscovery:
 
         # Compile pathspec for efficient matching
         self.spec = pathspec.PathSpec.from_lines("gitwildmatch", self.exclude_patterns)
+        self.root_path = None  # Will be set during find_python_files
         logger.debug(f"Initialized with {len(self.exclude_patterns)} exclude patterns")
 
     def find_python_files(self, root_path: Path) -> Iterator[Path]:
@@ -82,11 +86,16 @@ class FileDiscovery:
 
         Used in:
         - discovery.py
+        - src/uzpy/cli.py
+        - tests/test_discovery.py
         - uzpy/cli.py
         """
         if not root_path.exists():
             msg = f"Path does not exist: {root_path}"
             raise FileNotFoundError(msg)
+
+        # Set root path for relative path calculations
+        self.root_path = root_path.resolve()
 
         # Handle single file case
         if root_path.is_file():
@@ -178,8 +187,18 @@ class FileDiscovery:
         """
         # Convert to relative path for pattern matching
         try:
-            # pathspec expects forward slashes
-            path_str = str(path).replace("\\", "/")
+            if self.root_path:
+                # Use relative path from root for pattern matching
+                try:
+                    relative_path = path.resolve().relative_to(self.root_path)
+                    path_str = str(relative_path).replace("\\", "/")
+                except ValueError:
+                    # Path is not under root_path, use as-is
+                    path_str = str(path).replace("\\", "/")
+            else:
+                # Fallback to absolute path
+                path_str = str(path).replace("\\", "/")
+
             return self.spec.match_file(path_str)
         except Exception as e:
             logger.debug(f"Error checking exclusion for {path}: {e}")
@@ -240,6 +259,8 @@ def discover_files(
 
     Used in:
     - discovery.py
+    - src/uzpy/cli.py
+    - tests/test_discovery.py
     - uzpy/cli.py
     """
     discovery = FileDiscovery(exclude_patterns)

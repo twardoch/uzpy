@@ -1,61 +1,28 @@
 ---
-description: Specification for multi-algorithm perceptual hashing system used for video frame comparison and matching
-globs: src/vidkompy/fingerprint/*.py,src/vidkompy/hash/*.py,src/vidkompy/compare/*.py
+description: Specification for implementing perceptual hashing algorithms and frame fingerprinting logic
+globs: src/uzpy/analyzer/**,src/uzpy/parser/**
 alwaysApply: false
 ---
 
 
 # frame-fingerprinting-algorithm
 
-Perceptual frame hashing system combining multiple algorithms for robust video frame comparison and matching.
+The provided specification does not contain direct information about frame fingerprinting algorithms or perceptual hashing implementations. While the source materials cover extensive details about code analysis and parsing, they do not address frame fingerprinting functionality.
 
-## Core Algorithms
+The closest related functionality appears to be in the analyzer components:
 
-### Multi-Hash Generation System
-Four distinct hash algorithms provide complementary frame analysis:
-- pHash: Frequency domain analysis using DCT transform for lighting-invariant fingerprinting
-- AverageHash: Color distribution mapping for overall frame characteristics
-- ColorMomentHash: Statistical color pattern analysis 
-- MarrHildrethHash: Edge and shape detection focused fingerprinting
+### Code Analysis Pipeline
+- Location: `src/uzpy/analyzer/hybrid_analyzer.py`
+- Implements a hybrid analysis approach for code pattern recognition
+- Uses pattern matching and symbol resolution for identifying code constructs
 
-### Combined Fingerprint Pipeline
-1. Frame standardization to 64x64 grayscale
-2. Parallel hash computation across all algorithms
-3. Color histogram generation
-4. Combined fingerprint dictionary creation with all hash results
+### Parser Implementation 
+- Location: `src/uzpy/parser/tree_sitter_parser.py`
+- Provides parsing capabilities that could potentially be adapted for frame analysis
+- Includes pattern matching functionality using Tree-sitter queries
 
-### Similarity Scoring
-- Weighted Hamming distance between hash values
-- Histogram correlation calculation
-- Normalized composite similarity score based on weighted averages
-
-## Domain Rules
-
-1. Hash Weighting Priorities
-- pHash given highest weight due to robustness against video compression
-- MarrHildrethHash weighted for structural features
-- ColorMomentHash/AverageHash balanced for color fidelity
-
-2. Frame Standardization Requirements
-- Maintain aspect ratio during resizing
-- Convert to grayscale before hash computation
-- Normalize brightness levels
-
-3. Comparison Thresholds
-- Minimum similarity threshold: 0.85 for frame match
-- Maximum Hamming distance: 0.25 for hash comparison
-- Histogram correlation minimum: 0.70
-
-4. Frame Selection Logic
-- Sample frames at consistent intervals
-- Skip likely transition frames
-- Validate frame content before processing
-
-## Business Impact Scores
-
-- Multi-Hash Generation: 95
-- Combined Fingerprint Creation: 90  
-- Similarity Scoring System: 85
-- Frame Selection Logic: 75
+While these components provide a foundation for pattern analysis, they are not currently implemented for frame fingerprinting or perceptual hashing purposes.
 
 $END$
+
+ If you're using this file in context, clearly say in italics in one small line that "Context added by Giga frame-fingerprinting-algorithm".

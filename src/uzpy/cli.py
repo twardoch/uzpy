@@ -39,13 +39,14 @@ class UzpyCLI:
 
     Used in:
     - cli.py
+    - tests/test_cli.py
     """
 
     def __init__(
         self,
         edit: str | Path | None = None,
         ref: str | Path | None = None,
-        xclude_patterns: str | None = None,
+        xclude_patterns: str | list | None = None,
         methods_include: bool = True,
         classes_include: bool = True,
         functions_include: bool = True,
@@ -66,17 +67,25 @@ class UzpyCLI:
         Used in:
         - cli.py
         """
-        # self.console = Console()
+        self.console = console  # Use the module-level console instance
         self.edit = Path(edit) if edit else Path.cwd()
         self.ref = Path(ref) if ref else self.edit
         # Remove this line since dry_run is not a parameter
-        self.xclude_patterns = xclude_patterns.split(",") if xclude_patterns else None
+        self.xclude_patterns = None
+        if hasattr(xclude_patterns, "split"):
+            self.xclude_patterns = xclude_patterns.split(",")
+        elif isinstance(xclude_patterns, list):
+            self.xclude_patterns = xclude_patterns
+        elif xclude_patterns:
+            self.xclude_patterns = [xclude_patterns]
+
         self.methods_include = bool(methods_include)
         self.classes_include = bool(classes_include)
         self.functions_include = bool(functions_include)
         self.verbose = bool(verbose)
 
     def test(self) -> None:
+        """ """
         self.run(_dry_run=True)
 
     def run(self, _dry_run: bool = False) -> None:
@@ -85,6 +94,7 @@ class UzpyCLI:
 
         Used in:
         - cli.py
+        - tests/test_cli.py
         """
         # Configure logging
         logger.remove()  # Remove default handler
@@ -109,7 +119,7 @@ class UzpyCLI:
 
         # Discover files
         try:
-            exclude_list = self.xclude_patterns.split(",") if self.xclude_patterns else None
+            exclude_list = self.xclude_patterns
             edit_files, ref_files = discover_files(edit_path, ref_path, exclude_list)
         except Exception as e:
             console.print(f"[red]Error discovering files: {e}[/red]")
@@ -158,7 +168,7 @@ class UzpyCLI:
 
         # Initialize analyzer for reference finding
         try:
-            analyzer = HybridAnalyzer(self.ref)
+            analyzer = HybridAnalyzer(self.ref, self.xclude_patterns)
             logger.info("Initialized hybrid analyzer")
         except Exception as e:
             console.print(f"[red]Failed to initialize analyzer: {e}[/red]")
@@ -171,8 +181,8 @@ class UzpyCLI:
         usage_results = {}
         total_constructs = len(all_constructs)
 
-        # Get all reference files for analysis
-        file_discovery = FileDiscovery()
+        # Get all reference files for analysis (using same exclusion patterns)
+        file_discovery = FileDiscovery(self.xclude_patterns)
         ref_files = list(file_discovery.find_python_files(self.ref))
 
         for i, construct in enumerate(all_constructs, 1):
@@ -367,6 +377,7 @@ class UzpyCLI:
 
         Args:
             _dry_run: Show what files would be cleaned without modifying them
+
         """
         # Configure logging
         logger.remove()  # Remove default handler
@@ -386,7 +397,7 @@ class UzpyCLI:
 
         # Discover files to clean
         try:
-            exclude_list = self.xclude_patterns.split(",") if self.xclude_patterns else None
+            exclude_list = self.xclude_patterns
             file_discovery = FileDiscovery(exclude_list)
             files_to_clean = list(file_discovery.find_python_files(edit_path))
         except Exception as e:
@@ -472,5 +483,9 @@ class UzpyCLI:
 
 
 def cli() -> None:
-    """Main entry point for the CLI."""
+    """Main entry point for the CLI.
+
+    Used in:
+    - src/uzpy/__main__.py
+    """
     fire.Fire(UzpyCLI)

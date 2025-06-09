@@ -25,6 +25,13 @@ class ConstructType(Enum):
 
     Used in:
     - parser/tree_sitter_parser.py
+    - src/uzpy/analyzer/hybrid_analyzer.py
+    - src/uzpy/analyzer/jedi_analyzer.py
+    - src/uzpy/analyzer/rope_analyzer.py
+    - src/uzpy/parser/__init__.py
+    - tests/test_analyzer.py
+    - tests/test_modifier.py
+    - tests/test_parser.py
     - uzpy/analyzer/hybrid_analyzer.py
     - uzpy/analyzer/jedi_analyzer.py
     - uzpy/analyzer/rope_analyzer.py
@@ -53,6 +60,13 @@ class Construct:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - src/uzpy/analyzer/hybrid_analyzer.py
+    - src/uzpy/analyzer/jedi_analyzer.py
+    - src/uzpy/analyzer/rope_analyzer.py
+    - src/uzpy/modifier/libcst_modifier.py
+    - src/uzpy/parser/__init__.py
+    - tests/test_analyzer.py
+    - tests/test_modifier.py
     - uzpy/analyzer/hybrid_analyzer.py
     - uzpy/analyzer/jedi_analyzer.py
     - uzpy/analyzer/rope_analyzer.py
@@ -146,6 +160,10 @@ class Reference:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - src/uzpy/cli.py
+    - src/uzpy/modifier/libcst_modifier.py
+    - src/uzpy/parser/__init__.py
+    - tests/test_modifier.py
     - uzpy/cli.py
     - uzpy/modifier/libcst_modifier.py
     - uzpy/parser/__init__.py
@@ -166,6 +184,9 @@ class TreeSitterParser:
 
     Used in:
     - parser/tree_sitter_parser.py
+    - src/uzpy/cli.py
+    - src/uzpy/parser/__init__.py
+    - tests/test_parser.py
     - uzpy/cli.py
     - uzpy/parser/__init__.py
     """
@@ -237,6 +258,8 @@ class TreeSitterParser:
 
         Used in:
         - parser/tree_sitter_parser.py
+        - src/uzpy/cli.py
+        - tests/test_parser.py
         - uzpy/cli.py
         """
         logger.debug(f"Parsing file: {file_path}")
@@ -288,43 +311,43 @@ class TreeSitterParser:
 
         # Process function definitions
         for function_def in captures.get("function_def", []):
-            # Get captures for this specific function
-            func_captures = self.function_query.captures(function_def)
-
+            # Find function name and body directly from the function_def node structure
             function_name = None
             function_body = None
 
-            # Extract name and body
-            if "function_name" in func_captures:
-                function_name = self._get_node_text(func_captures["function_name"][0], source_text)
-            if "function_body" in func_captures:
-                function_body = func_captures["function_body"][0]
+            # Look for the identifier (function name) and block (function body) in the function_def children
+            for child in function_def.children:
+                if child.type == "identifier":
+                    function_name = self._get_node_text(child, source_text)
+                elif child.type == "block":
+                    function_body = child
 
             if function_name and function_body:
                 # Check if this is actually a method (inside a class)
                 is_method = self._is_inside_class(function_def)
-                construct_type = ConstructType.METHOD if is_method else ConstructType.FUNCTION
 
-                # Get docstring
-                docstring = self._extract_docstring(function_body, source_text)
+                # Only process functions that are NOT methods (methods are handled by _extract_methods)
+                if not is_method:
+                    # Get docstring
+                    docstring = self._extract_docstring(function_body, source_text)
 
-                # Calculate line number (Tree-sitter uses 0-based, we want 1-based)
-                line_number = function_def.start_point[0] + 1
+                    # Calculate line number (Tree-sitter uses 0-based, we want 1-based)
+                    line_number = function_def.start_point[0] + 1
 
-                # Build full name
-                full_name = self._build_full_name(function_def, function_name, source_text)
+                    # Build full name
+                    full_name = self._build_full_name(function_def, function_name, source_text)
 
-                construct = Construct(
-                    name=function_name,
-                    type=construct_type,
-                    file_path=file_path,
-                    line_number=line_number,
-                    docstring=docstring,
-                    full_name=full_name,
-                    node=function_def,
-                )
+                    construct = Construct(
+                        name=function_name,
+                        type=ConstructType.FUNCTION,
+                        file_path=file_path,
+                        line_number=line_number,
+                        docstring=docstring,
+                        full_name=full_name,
+                        node=function_def,
+                    )
 
-                functions.append(construct)
+                    functions.append(construct)
 
         return functions
 
@@ -393,17 +416,16 @@ class TreeSitterParser:
             if not class_def:
                 continue
 
-            # Get captures for this specific method
-            method_captures = self.method_query.captures(method_def)
-
+            # Find method name and body directly from the method_def node structure
             method_name = None
             method_body = None
 
-            # Extract name and body
-            if "method_name" in method_captures:
-                method_name = self._get_node_text(method_captures["method_name"][0], source_text)
-            if "method_body" in method_captures:
-                method_body = method_captures["method_body"][0]
+            # Look for the identifier (method name) and block (method body) in the method_def children
+            for child in method_def.children:
+                if child.type == "identifier":
+                    method_name = self._get_node_text(child, source_text)
+                elif child.type == "block":
+                    method_body = child
 
             if method_name and method_body:
                 # Get docstring
@@ -479,12 +501,21 @@ class TreeSitterParser:
     def _get_node_text(self, node: Node, source_text: str) -> str:
         """Get the text content of a Tree-sitter node.
 
+        Tree-sitter works with byte positions, but Python strings use Unicode code points.
+        When the source contains non-ASCII characters, byte positions and string indices
+        diverge. We need to work with the original bytes and decode the specific slice.
+
         Used in:
         - parser/tree_sitter_parser.py
         """
         start_byte = node.start_byte
         end_byte = node.end_byte
-        return source_text[start_byte:end_byte]
+
+        # Convert source text back to bytes, slice, then decode
+        # This ensures we get the exact bytes that tree-sitter identified
+        source_bytes = source_text.encode("utf-8")
+        node_bytes = source_bytes[start_byte:end_byte]
+        return node_bytes.decode("utf-8")
 
     def _is_inside_class(self, node: Node) -> bool:
         """Check if a node is inside a class definition.
@@ -526,6 +557,7 @@ class TreeSitterParser:
 
         Used in:
         - parser/tree_sitter_parser.py
+        - tests/test_parser.py
         """
         constructs = self.parse_file(file_path)
 

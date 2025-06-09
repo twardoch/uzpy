@@ -208,3 +208,63 @@ def test_parser_nonexistent_file():
 
     with pytest.raises(FileNotFoundError):
         parser.parse_file(Path("/this/file/does/not/exist.py"))
+
+
+def test_parser_utf8_method_names():
+    """Test that method names are correctly extracted even with UTF-8 characters in the file.
+
+    This tests the fix for the issue where method names were being truncated
+    when the file contained non-ASCII characters that caused byte/string position misalignment.
+
+    """
+    content = '''"""Module with UTF-8 characters: ✅ 🚀 ❌"""
+
+class TestClass:
+    """A test class with UTF-8 in docstring: ✅"""
+
+    def _compute_temporal_alignment(
+        self,
+        bg_info: VideoInfo,
+        fg_info: VideoInfo,
+        mode: TimeMode,
+        trim: bool,
+        spatial_alignment: SpatialTransform,
+        border_thickness: int,
+        window: int,
+    ) -> TemporalSync:
+        """Compute temporal alignment based on mode.
+
+        This method has a long parameter list that spans multiple lines.
+        It should be correctly parsed despite UTF-8 characters earlier in the file.
+        """
+        pass
+
+    def _log_compatibility(self, bg_info, fg_info):
+        """Log video compatibility information."""
+        pass
+'''
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+
+        parser = TreeSitterParser()
+        constructs = parser.parse_file(Path(f.name))
+
+        # Find the methods
+        methods = [c for c in constructs if c.type == ConstructType.METHOD]
+        method_names = {c.name for c in methods}
+
+        # Verify that method names are correctly extracted (not truncated)
+        assert "_compute_temporal_alignment" in method_names
+        assert "_log_compatibility" in method_names
+
+        # Verify no truncated names
+        truncated_names = [name for name in method_names if name.endswith("(") or "\n" in name]
+        assert len(truncated_names) == 0, f"Found truncated method names: {truncated_names}"
+
+        # Verify full names are correct
+        temporal_method = next(c for c in methods if c.name == "_compute_temporal_alignment")
+        assert temporal_method.full_name == "TestClass._compute_temporal_alignment"
+
+    Path(f.name).unlink()

@@ -28,6 +28,8 @@ class JediAnalyzer:
 
     Used in:
     - analyzer/jedi_analyzer.py
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/analyzer/hybrid_analyzer.py
     - uzpy/analyzer/__init__.py
     - uzpy/analyzer/hybrid_analyzer.py
     """
@@ -59,9 +61,14 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         usage_files = set()
+
+        # For modules, use import-based search
+        if construct.type == ConstructType.MODULE:
+            return self._find_module_imports(construct, search_paths)
 
         try:
             # Create a Jedi script for the file containing the construct
@@ -116,6 +123,11 @@ class JediAnalyzer:
         Used in:
         - analyzer/jedi_analyzer.py
         """
+        # For modules, we can't find them by name in the source
+        # Use line 1, column 0 as the module start
+        if construct.type == ConstructType.MODULE:
+            return (1, 0)
+
         lines = source_code.split("\n")
 
         if construct.line_number > len(lines):
@@ -145,6 +157,50 @@ class JediAnalyzer:
                 column = name_start
 
         return (construct.line_number, column)
+
+    def _find_module_imports(self, construct: Construct, search_paths: list[Path]) -> list[Path]:
+        """
+        Find imports of a module across the codebase.
+
+        Args:
+            construct: The module construct to search for
+            search_paths: List of paths to search within
+
+        Returns:
+            List of file paths that import the module
+
+        Used in:
+        - analyzer/jedi_analyzer.py
+        """
+        usage_files = set()
+        module_name = construct.full_name
+
+        # Create import patterns to search for
+        import_patterns = [
+            f"import {module_name}",
+            f"from {module_name} import",
+            f"from {module_name}.",
+        ]
+
+        for search_path in search_paths:
+            files_to_search = [search_path] if search_path.is_file() else list(search_path.rglob("*.py"))
+
+            for file_path in files_to_search:
+                if file_path == construct.file_path:
+                    continue  # Skip the module's own file
+
+                try:
+                    with open(file_path, encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+
+                    # Check if any import patterns appear in the file
+                    if any(pattern in content for pattern in import_patterns):
+                        usage_files.add(file_path)
+
+                except Exception as e:
+                    logger.debug(f"Error reading {file_path} for module import search: {e}")
+
+        return list(usage_files)
 
     def _fallback_search(self, construct: Construct, search_paths: list[Path]) -> set[Path]:
         """
@@ -216,6 +272,7 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         logger.info(f"Analyzing {len(constructs)} constructs with Jedi")
@@ -244,6 +301,7 @@ class JediAnalyzer:
 
         Used in:
         - analyzer/jedi_analyzer.py
+        - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
         try:
