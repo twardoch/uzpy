@@ -11,10 +11,10 @@ from pathlib import Path
 
 from loguru import logger
 
-from uzpy.analyzer import HybridAnalyzer
+from uzpy.analyzer import CachedAnalyzer, HybridAnalyzer, ParallelAnalyzer
 from uzpy.discovery import FileDiscovery, discover_files
 from uzpy.modifier import LibCSTModifier
-from uzpy.parser import TreeSitterParser
+from uzpy.parser import CachedParser, TreeSitterParser
 from uzpy.types import Construct, Reference
 
 
@@ -63,7 +63,9 @@ def run_analysis_and_modification(
 
     # Step 2: Parse constructs
     logger.info("Parsing edit files for constructs...")
-    parser = TreeSitterParser()
+    # Use cached parser for improved performance
+    base_parser = TreeSitterParser()
+    parser = CachedParser(base_parser)
     all_constructs = []
 
     for edit_file in edit_files:
@@ -84,33 +86,28 @@ def run_analysis_and_modification(
     # Step 3: Analyze usages
     logger.info("Finding references...")
     try:
-        analyzer = HybridAnalyzer(ref_path, exclude_patterns)
-        logger.debug("Initialized hybrid analyzer")
+        # Stack analyzers: base -> cached -> parallel
+        base_analyzer = HybridAnalyzer(ref_path, exclude_patterns)
+        cached_analyzer = CachedAnalyzer(base_analyzer)
+        analyzer = ParallelAnalyzer(cached_analyzer)
+        logger.debug("Initialized parallel cached hybrid analyzer")
     except Exception as e:
         logger.error(f"Failed to initialize analyzer: {e}")
         raise
-
-    usage_results = {}
 
     # Get all reference files for analysis
     file_discovery = FileDiscovery(exclude_patterns)
     ref_files = list(file_discovery.find_python_files(ref_path))
 
-    total_constructs = len(all_constructs)
-    for i, construct in enumerate(all_constructs, 1):
-        logger.debug(f"Analyzing {construct.name} ({i}/{total_constructs})")
-
-        try:
-            # Find where this construct is used (already returns Reference objects)
-            references = analyzer.find_usages(construct, ref_files)
-            usage_results[construct] = references
-
-            if references:
-                logger.debug(f"Found {len(references)} references for {construct.name}")
-
-        except Exception as e:
-            logger.warning(f"Error analyzing {construct.name}: {e}")
-            usage_results[construct] = []
+    # Use parallel batch processing for better performance
+    def progress_callback(completed, total):
+        logger.info(f"Progress: {completed}/{total} constructs analyzed")
+    
+    usage_results = analyzer.find_usages_batch(
+        all_constructs, 
+        ref_files,
+        progress_callback=progress_callback
+    )
 
     # Summary of analysis results
     constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
