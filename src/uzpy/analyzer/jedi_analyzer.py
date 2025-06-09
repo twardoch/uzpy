@@ -16,7 +16,7 @@ from pathlib import Path
 import jedi
 from loguru import logger
 
-from uzpy.parser import Construct, ConstructType
+from uzpy.types import Construct, ConstructType, Reference
 
 
 class JediAnalyzer:
@@ -27,6 +27,8 @@ class JediAnalyzer:
     Provides good caching and handles large codebases efficiently.
 
     Used in:
+    - analyzer/__init__.py
+    - analyzer/hybrid_analyzer.py
     - analyzer/jedi_analyzer.py
     - src/uzpy/analyzer/__init__.py
     - src/uzpy/analyzer/hybrid_analyzer.py
@@ -48,7 +50,7 @@ class JediAnalyzer:
         self.project = jedi.Project(str(project_path))
         logger.debug(f"Jedi analyzer initialized for {project_path}")
 
-    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Path]:
+    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
         Find all files where a construct is used.
 
@@ -57,14 +59,15 @@ class JediAnalyzer:
             search_paths: List of files to search within
 
         Returns:
-            List of file paths where the construct is used
+            List of Reference objects where the construct is used
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/jedi_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
         """
-        usage_files = set()
+        usage_references = []
 
         # For modules, use import-based search
         if construct.type == ConstructType.MODULE:
@@ -96,18 +99,26 @@ class JediAnalyzer:
 
                         # Only include files in our search paths
                         if any(self._is_file_in_search_path(ref_file, search_path) for search_path in search_paths):
-                            usage_files.add(ref_file)
+                            # Create a Reference object with line number from Jedi
+                            usage_ref = Reference(
+                                file_path=ref_file,
+                                line_number=ref.line,
+                                column_number=ref.column,
+                                context="",  # Can be enhanced later if needed
+                            )
+                            usage_references.append(usage_ref)
 
             except Exception as e:
                 logger.debug(f"Jedi reference finding failed for {construct.full_name}: {e}")
                 # Fall back to alternative method
-                usage_files.update(self._fallback_search(construct, search_paths))
+                fallback_refs = self._fallback_search(construct, search_paths)
+                usage_references.extend(fallback_refs)
 
         except Exception as e:
             logger.error(f"Error finding usages for {construct.full_name}: {e}")
 
-        logger.debug(f"Found {len(usage_files)} usage files for {construct.full_name}")
-        return list(usage_files)
+        logger.debug(f"Found {len(usage_references)} usage references for {construct.full_name}")
+        return usage_references
 
     def _find_definition_position(self, construct: Construct, source_code: str) -> tuple[int, int] | None:
         """
@@ -158,7 +169,7 @@ class JediAnalyzer:
 
         return (construct.line_number, column)
 
-    def _find_module_imports(self, construct: Construct, search_paths: list[Path]) -> list[Path]:
+    def _find_module_imports(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
         Find imports of a module across the codebase.
 
@@ -167,12 +178,12 @@ class JediAnalyzer:
             search_paths: List of paths to search within
 
         Returns:
-            List of file paths that import the module
+            List of Reference objects where the module is imported
 
         Used in:
         - analyzer/jedi_analyzer.py
         """
-        usage_files = set()
+        usage_references = []
         module_name = construct.full_name
 
         # Create import patterns to search for
@@ -195,14 +206,21 @@ class JediAnalyzer:
 
                     # Check if any import patterns appear in the file
                     if any(pattern in content for pattern in import_patterns):
-                        usage_files.add(file_path)
+                        # Create a Reference object with line number from import
+                        usage_ref = Reference(
+                            file_path=file_path,
+                            line_number=1,  # Assuming import statements are at the top of the file
+                            column_number=0,  # Assuming import statements are at the start of the file
+                            context="",  # Can be enhanced later if needed
+                        )
+                        usage_references.append(usage_ref)
 
                 except Exception as e:
                     logger.debug(f"Error reading {file_path} for module import search: {e}")
 
-        return list(usage_files)
+        return usage_references
 
-    def _fallback_search(self, construct: Construct, search_paths: list[Path]) -> set[Path]:
+    def _fallback_search(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
         Fallback search method using simple text matching.
 
@@ -211,12 +229,12 @@ class JediAnalyzer:
             search_paths: List of paths to search within
 
         Returns:
-            Set of file paths that potentially contain the construct
+            List of Reference objects where the construct is used
 
         Used in:
         - analyzer/jedi_analyzer.py
         """
-        usage_files = set()
+        usage_references = []
 
         # Simple text search as fallback
         search_terms = [
@@ -238,12 +256,19 @@ class JediAnalyzer:
 
                     # Check if any search terms appear in the file
                     if any(term in content for term in search_terms):
-                        usage_files.add(file_path)
+                        # Create a Reference object with line number from search
+                        usage_ref = Reference(
+                            file_path=file_path,
+                            line_number=1,  # Assuming search terms are at the top of the file
+                            column_number=0,  # Assuming search terms are at the start of the file
+                            context="",  # Can be enhanced later if needed
+                        )
+                        usage_references.append(usage_ref)
 
                 except Exception as e:
                     logger.debug(f"Error reading {file_path} for fallback search: {e}")
 
-        return usage_files
+        return usage_references
 
     def _is_file_in_search_path(self, file_path: Path, search_path: Path) -> bool:
         """Check if a file is within a search path.
@@ -259,7 +284,7 @@ class JediAnalyzer:
         except Exception:
             return False
 
-    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Reference]]:
         """
         Analyze multiple constructs in batch.
 
@@ -268,9 +293,10 @@ class JediAnalyzer:
             search_paths: List of paths to search within
 
         Returns:
-            Dictionary mapping construct full names to lists of usage files
+            Dictionary mapping construct full names to lists of usage references
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/jedi_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
@@ -285,8 +311,8 @@ class JediAnalyzer:
                 logger.debug(f"Processed {i}/{len(constructs)} constructs")
 
             try:
-                usage_files = self.find_usages(construct, search_paths)
-                results[construct.full_name] = usage_files
+                usage_references = self.find_usages(construct, search_paths)
+                results[construct.full_name] = usage_references
             except Exception as e:
                 logger.error(f"Error analyzing {construct.full_name}: {e}")
                 results[construct.full_name] = []
@@ -300,6 +326,7 @@ class JediAnalyzer:
         """Get information about the Jedi project.
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/jedi_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py

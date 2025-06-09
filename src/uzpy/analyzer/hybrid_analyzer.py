@@ -17,7 +17,7 @@ from loguru import logger
 
 from uzpy.analyzer.jedi_analyzer import JediAnalyzer
 from uzpy.analyzer.rope_analyzer import RopeAnalyzer
-from uzpy.parser import Construct, ConstructType
+from uzpy.types import Construct, ConstructType, Reference
 
 
 class HybridAnalyzer:
@@ -28,9 +28,12 @@ class HybridAnalyzer:
     complex cases. Provides confidence scoring and fallback mechanisms.
 
     Used in:
+    - analyzer/__init__.py
     - analyzer/hybrid_analyzer.py
+    - pipeline.py
     - src/uzpy/analyzer/__init__.py
     - src/uzpy/cli.py
+    - src/uzpy/pipeline.py
     - tests/test_analyzer.py
     - uzpy/analyzer/__init__.py
     - uzpy/cli.py
@@ -73,7 +76,7 @@ class HybridAnalyzer:
 
         logger.info(f"Hybrid analyzer initialized (Rope: {self.rope_available}, Jedi: {self.jedi_available})")
 
-    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Path]:
+    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
         Find all files where a construct is used using hybrid approach.
 
@@ -82,61 +85,82 @@ class HybridAnalyzer:
             search_paths: List of files to search within
 
         Returns:
-            List of file paths where the construct is used
+            List of Reference objects where the construct is used
 
         Used in:
         - analyzer/hybrid_analyzer.py
+        - pipeline.py
         - src/uzpy/cli.py
+        - src/uzpy/pipeline.py
         - tests/test_analyzer.py
         - uzpy/cli.py
         """
-        jedi_results = set()
-        rope_results = set()
+        jedi_results = []
+        rope_results = []
 
         # Try Jedi first (faster)
         if self.jedi_available:
             try:
-                jedi_files = self.jedi_analyzer.find_usages(construct, search_paths)
-                jedi_results.update(jedi_files)
-                logger.debug(f"Jedi found {len(jedi_files)} files for {construct.full_name}")
+                jedi_refs = self.jedi_analyzer.find_usages(construct, search_paths)
+                jedi_results.extend(jedi_refs)
+                logger.debug(f"Jedi found {len(jedi_refs)} references for {construct.full_name}")
             except Exception as e:
                 logger.debug(f"Jedi analysis failed for {construct.full_name}: {e}")
 
         # Use Rope for verification and additional results
         if self.rope_available:
             try:
-                rope_files = self.rope_analyzer.find_usages(construct, search_paths)
-                rope_results.update(rope_files)
-                logger.debug(f"Rope found {len(rope_files)} files for {construct.full_name}")
+                rope_refs = self.rope_analyzer.find_usages(construct, search_paths)
+                rope_results.extend(rope_refs)
+                logger.debug(f"Rope found {len(rope_refs)} references for {construct.full_name}")
             except Exception as e:
                 logger.debug(f"Rope analysis failed for {construct.full_name}: {e}")
 
         # Combine results with preference for accuracy
-        if rope_results and jedi_results:
+        # Convert to sets of file paths for deduplication
+        jedi_files = {ref.file_path for ref in jedi_results}
+        rope_files = {ref.file_path for ref in rope_results}
+
+        if rope_files and jedi_files:
             # Use intersection for high confidence, union for comprehensive coverage
-            intersection = rope_results & jedi_results
-            union = rope_results | jedi_results
+            intersection = rope_files & jedi_files
+            union = rope_files | jedi_files
 
             # If intersection is substantial, prefer it (higher confidence)
             if len(intersection) >= len(union) * 0.7:
-                final_results = intersection
+                final_files = intersection
                 logger.debug(f"Using intersection of results for {construct.full_name}")
             else:
-                final_results = union
+                final_files = union
                 logger.debug(f"Using union of results for {construct.full_name}")
-        elif rope_results:
-            final_results = rope_results
+        elif rope_files:
+            final_files = rope_files
             logger.debug(f"Using Rope results only for {construct.full_name}")
-        elif jedi_results:
-            final_results = jedi_results
+        elif jedi_files:
+            final_files = jedi_files
             logger.debug(f"Using Jedi results only for {construct.full_name}")
         else:
-            final_results = set()
+            final_files = set()
             logger.debug(f"No results found for {construct.full_name}")
 
-        return list(final_results)
+        # Convert back to Reference objects, preferring Rope results if available
+        final_references = []
+        for file_path in final_files:
+            # Prefer rope reference if available, otherwise use jedi
+            rope_ref = next((ref for ref in rope_results if ref.file_path == file_path), None)
+            jedi_ref = next((ref for ref in jedi_results if ref.file_path == file_path), None)
 
-    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+            if rope_ref:
+                final_references.append(rope_ref)
+            elif jedi_ref:
+                final_references.append(jedi_ref)
+            else:
+                # Fallback to basic Reference
+                final_references.append(Reference(file_path=file_path, line_number=1))
+
+        return final_references
+
+    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Reference]]:
         """
         Analyze multiple constructs using hybrid approach.
 
@@ -145,7 +169,7 @@ class HybridAnalyzer:
             search_paths: List of paths to search within
 
         Returns:
-            Dictionary mapping construct full names to lists of usage files
+            Dictionary mapping construct full names to lists of usage references
 
         Used in:
         - analyzer/hybrid_analyzer.py
@@ -180,7 +204,7 @@ class HybridAnalyzer:
 
         return results
 
-    def _analyze_full_hybrid(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+    def _analyze_full_hybrid(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Reference]]:
         """Full hybrid analysis using both analyzers for each construct.
 
         Used in:
@@ -193,15 +217,17 @@ class HybridAnalyzer:
                 logger.debug(f"Processed {i}/{len(constructs)} constructs")
 
             try:
-                usage_files = self.find_usages(construct, search_paths)
-                results[construct.full_name] = usage_files
+                usage_refs = self.find_usages(construct, search_paths)
+                results[construct.full_name] = usage_refs
             except Exception as e:
                 logger.error(f"Error in hybrid analysis for {construct.full_name}: {e}")
                 results[construct.full_name] = []
 
         return results
 
-    def _analyze_jedi_primary(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+    def _analyze_jedi_primary(
+        self, constructs: list[Construct], search_paths: list[Path]
+    ) -> dict[str, list[Reference]]:
         """Jedi-primary analysis with selective Rope verification.
 
         Used in:
@@ -224,16 +250,28 @@ class HybridAnalyzer:
 
             # Merge results, preferring Rope for verified constructs
             for construct in candidates_for_rope:
-                rope_files = rope_results.get(construct.full_name, [])
-                jedi_files = jedi_results.get(construct.full_name, [])
+                rope_refs = rope_results.get(construct.full_name, [])
+                jedi_refs = jedi_results.get(construct.full_name, [])
 
                 # Use union of both results
-                combined = list(set(rope_files) | set(jedi_files))
-                jedi_results[construct.full_name] = combined
+                combined_files = {ref.file_path for ref in rope_refs} | {ref.file_path for ref in jedi_refs}
+                combined_refs = []
+
+                for file_path in combined_files:
+                    # Prefer rope reference if available, otherwise use jedi
+                    rope_ref = next((ref for ref in rope_refs if ref.file_path == file_path), None)
+                    jedi_ref = next((ref for ref in jedi_refs if ref.file_path == file_path), None)
+
+                    if rope_ref:
+                        combined_refs.append(rope_ref)
+                    elif jedi_ref:
+                        combined_refs.append(jedi_ref)
+
+                jedi_results[construct.full_name] = combined_refs
 
         return jedi_results
 
-    def _analyze_rope_only(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+    def _analyze_rope_only(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Reference]]:
         """Rope-only analysis fallback.
 
         Used in:

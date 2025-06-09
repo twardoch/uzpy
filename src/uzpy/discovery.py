@@ -26,8 +26,11 @@ class FileDiscovery:
     efficient traversal with proper error handling.
 
     Used in:
+    - cli.py
     - discovery.py
+    - pipeline.py
     - src/uzpy/cli.py
+    - src/uzpy/pipeline.py
     - tests/test_discovery.py
     - uzpy/cli.py
     """
@@ -85,8 +88,11 @@ class FileDiscovery:
             PermissionError: If can't access directory
 
         Used in:
+        - cli.py
         - discovery.py
+        - pipeline.py
         - src/uzpy/cli.py
+        - src/uzpy/pipeline.py
         - tests/test_discovery.py
         - uzpy/cli.py
         """
@@ -259,7 +265,9 @@ def discover_files(
 
     Used in:
     - discovery.py
+    - pipeline.py
     - src/uzpy/cli.py
+    - src/uzpy/pipeline.py
     - tests/test_discovery.py
     - uzpy/cli.py
     """

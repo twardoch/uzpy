@@ -18,7 +18,7 @@ from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError
 from rope.base.project import Project
 from rope.contrib.findit import find_occurrences
 
-from uzpy.parser import Construct, ConstructType
+from uzpy.types import Construct, ConstructType, Reference
 
 
 class RopeAnalyzer:
@@ -29,6 +29,8 @@ class RopeAnalyzer:
     classes, and methods are used across a Python codebase.
 
     Used in:
+    - analyzer/__init__.py
+    - analyzer/hybrid_analyzer.py
     - analyzer/rope_analyzer.py
     - src/uzpy/analyzer/__init__.py
     - src/uzpy/analyzer/hybrid_analyzer.py
@@ -111,7 +113,7 @@ class RopeAnalyzer:
             logger.error(f"Failed to initialize Rope project: {e}")
             raise
 
-    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Path]:
+    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
         Find all files where a construct is used.
 
@@ -120,9 +122,10 @@ class RopeAnalyzer:
             search_paths: List of files to search within
 
         Returns:
-            List of file paths where the construct is used
+            List of Reference objects where the construct is used
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/rope_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
@@ -136,7 +139,7 @@ class RopeAnalyzer:
             logger.debug(f"Skipping Rope analysis for module {construct.full_name}")
             return []
 
-        usage_files = set()
+        usage_references = []
 
         try:
             # Get the resource for the file containing the construct
@@ -164,16 +167,22 @@ class RopeAnalyzer:
 
                 # Only include files that are in our search paths
                 if any(self._is_file_in_search_path(occurrence_file, search_path) for search_path in search_paths):
-                    usage_files.add(occurrence_file)
+                    # Create a Reference object with line number from Rope
+                    ref = Reference(
+                        file_path=occurrence_file,
+                        line_number=occurrence.lineno,
+                        context="",  # Can be enhanced later if needed
+                    )
+                    usage_references.append(ref)
 
-            logger.debug(f"Found {len(usage_files)} usage files for {construct.full_name}")
+            logger.debug(f"Found {len(usage_references)} usage references for {construct.full_name}")
 
         except (ModuleSyntaxError, ResourceNotFoundError) as e:
             logger.warning(f"Rope error analyzing {construct.full_name}: {e}")
         except Exception as e:
             logger.error(f"Unexpected error finding usages for {construct.full_name}: {e}")
 
-        return list(usage_files)
+        return usage_references
 
     def _find_construct_offset(self, construct: Construct, resource) -> int | None:
         """
@@ -261,6 +270,7 @@ class RopeAnalyzer:
             Dictionary mapping construct full names to lists of usage files
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/rope_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
@@ -290,6 +300,7 @@ class RopeAnalyzer:
         """Get information about the Rope project.
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/rope_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py
@@ -316,6 +327,7 @@ class RopeAnalyzer:
         """Clean up the Rope project.
 
         Used in:
+        - analyzer/hybrid_analyzer.py
         - analyzer/rope_analyzer.py
         - src/uzpy/analyzer/hybrid_analyzer.py
         - uzpy/analyzer/hybrid_analyzer.py

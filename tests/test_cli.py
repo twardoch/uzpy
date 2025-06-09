@@ -45,15 +45,15 @@ class SampleClass:
 def test_cli_init():
     """Test CLI initialization."""
     cli = UzpyCLI()
-    assert cli.console is not None
+    assert cli.edit is not None
 
 
 def test_cli_with_nonexistent_path(capsys):
     """Test CLI with non-existent path."""
-    cli = UzpyCLI()
-    cli.run(edit="/nonexistent/path")
+    cli = UzpyCLI(edit="/nonexistent/path")
+    cli.run()
     captured = capsys.readouterr()
-    assert "does not exist" in captured.out
+    assert "does not exist" in captured.err
 
 
 def test_cli_dry_run(sample_project, capsys):
