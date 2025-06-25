@@ -1,277 +1,191 @@
 # this_file: src/uzpy/analyzer/astgrep_analyzer.py
 
 """
-ast-grep based analyzer for structural pattern matching.
+ast-grep based analyzer for uzpy.
 
-This module provides an analyzer that uses ast-grep for intuitive and fast
-structural pattern matching across Python codebases.
+This module provides an AstGrepAnalyzer class that uses the ast-grep tool
+(via its Python bindings `ast-grep-py`) to find Python constructs based on
+structural patterns. This allows for more flexible and precise pattern matching
+than simple text searches.
 """
 
-import json
-import subprocess
 from pathlib import Path
-from typing import Optional, Union
+from loguru import logger  # Moved logger import to the top
 
-from loguru import logger
+from sgql import SGConfig
+
+# In older versions, it might be: from ast_grep_py import SgRoot
+# Checking common import paths for ast-grep's Python API
+try:
+    from ast_grep_py import SgRoot, TreeSitterLang  # Modern ast-grep-py
+except ImportError:
+    try:
+        from ast_grep_py.langs import TreeSitterLang
+        from ast_grep_py.sg_root import SgRoot  # Older layout
+    except ImportError:
+        SgRoot = None  # Fallback if import fails
+        TreeSitterLang = None
+        logger.warning("Failed to import SgRoot from ast_grep_py. AstGrepAnalyzer may not function.")
+
 
 from uzpy.types import Construct, ConstructType, Reference
 
 
 class AstGrepAnalyzer:
     """
-    Structural pattern matching analyzer using ast-grep.
-
-    This analyzer leverages ast-grep's powerful pattern matching capabilities
-    to find complex usage patterns that other analyzers might miss.
+    An analyzer that uses ast-grep for structural code searching.
+    It matches code patterns to find usages of constructs.
     """
 
-    def __init__(self, project_root: Path, exclude_patterns: list[str] | None = None):
+    def __init__(self, project_root: Path):
         """
-        Initialize ast-grep analyzer.
+        Initialize the AstGrepAnalyzer.
 
         Args:
-            project_root: Root directory of the project
-            exclude_patterns: Patterns to exclude from analysis
+            project_root: The root directory of the project. Used for resolving relative paths.
         """
-        # Handle case where project_root is a file instead of directory
-        if project_root.is_file():
-            self.project_root = project_root.parent
-        else:
-            self.project_root = project_root
-        self.exclude_patterns = exclude_patterns or []
+        self.project_root = project_root
+        if SgRoot is None:
+            logger.error("ast-grep Python bindings (SgRoot) not available. AstGrepAnalyzer will be non-functional.")
+        logger.info(f"AstGrepAnalyzer initialized for project root: {self.project_root}")
 
-        # Check if ast-grep is available
-        try:
-            result = subprocess.run(["ast-grep", "--version"], capture_output=True, text=True, check=False)
-            logger.debug(f"Using ast-grep {result.stdout.strip()}")
-            self.astgrep_cmd = ["ast-grep"]
-        except FileNotFoundError:
-            # Try the Python bindings
-            logger.info("ast-grep CLI not found, using Python bindings")
-            self.astgrep_cmd = ["python", "-m", "ast_grep_py"]
-
-    def find_usages(self, construct: Construct, reference_files: list[Path]) -> list[Reference]:
+    def _get_ast_grep_patterns(self, construct: Construct) -> list[dict[str, str]]:
         """
-        Find usages of a construct using ast-grep pattern matching.
-
-        Args:
-            construct: The construct to find usages for
-            reference_files: List of files to search in
-
-        Returns:
-            List of references to the construct
+        Generate ast-grep patterns for a given construct.
+        See ast-grep pattern syntax: https://ast-grep.github.io/guide/pattern-syntax.html
         """
-        references = []
-
-        # Generate patterns based on construct type
-        patterns = self._generate_patterns(construct)
-
-        for pattern in patterns:
-            # Run ast-grep for each pattern
-            matches = self._search_pattern(pattern, reference_files)
-            references.extend(matches)
-
-        # Deduplicate references
-        unique_refs = {}
-        for ref in references:
-            key = (ref.file_path, ref.line_number, ref.column)
-            if key not in unique_refs:
-                unique_refs[key] = ref
-
-        return list(unique_refs.values())
-
-    def _generate_patterns(self, construct: Construct) -> list[str]:
-        """
-        Generate ast-grep patterns for different construct types and usage patterns.
-
-        Args:
-            construct: The construct to generate patterns for
-
-        Returns:
-            List of ast-grep pattern strings
-        """
-        patterns = []
         name = construct.name
+        patterns = []
+
+        # General call pattern (works for functions and methods if object is not specified)
+        patterns.append({"rule": {"pattern": f"{name}($$$)"}, "description": "Direct call"})
+
+        # Attribute access / method call (e.g., object.method_name)
+        # $OBJ.{name}($$$) where $OBJ is a metavariable matching any identifier/expression.
+        patterns.append({"rule": {"pattern": "$_.$name($$$)"}, "description": "Method call on object"})
+        patterns.append({"rule": {"pattern": "$_.$name"}, "description": "Attribute access"})
+
+        if construct.type == ConstructType.CLASS:
+            # Class instantiation
+            patterns.append({"rule": {"pattern": f"{name}($$$)"}, "description": "Class instantiation"})
+            # Type hints
+            patterns.append({"rule": {"pattern": f"$_: {name}"}, "description": "Type hint (variable)"})
+            patterns.append({"rule": {"pattern": f"$_: Optional[{name}]"}, "description": "Type hint (Optional)"})
+            patterns.append({"rule": {"pattern": f"$_: Union[{name}, $$$]"}, "description": "Type hint (Union, first)"})
+            patterns.append({"rule": {"pattern": f"$_: Union[$$$, {name}]"}, "description": "Type hint (Union, other)"})
+            patterns.append({"rule": {"pattern": f"-> {name}"}, "description": "Return type hint"})
 
         # Import patterns
-        patterns.extend(
-            [
-                f"import {name}",
-                f"import $M, {name}",
-                f"from $M import {name}",
-                f"from $M import {name}, $$$",
-                f"from $M import $A as {name}",
-            ]
+        # from module import name
+        patterns.append({"rule": {"pattern": f"from $_ import {name}"}, "description": "Direct import"})
+        patterns.append(
+            {"rule": {"pattern": f"from $_ import $MODULE as {name}"}, "description": "Direct import with alias"}
+        )
+        # from module import name as alias (if construct.name is the original name)
+        patterns.append(
+            {
+                "rule": {"pattern": f"from $_ import {name} as $_"},
+                "description": "Direct import with alias for construct",
+            }
         )
 
-        if construct.type == ConstructType.FUNCTION:
-            # Function call patterns
-            patterns.extend(
-                [
-                    f"{name}($$$)",  # Direct call
-                    f"$A.{name}($$$)",  # Method call
-                    f"$A = {name}($$$)",  # Assignment
-                    f"return {name}($$$)",  # Return
-                    f"yield {name}($$$)",  # Yield
-                    f"await {name}($$$)",  # Async call
-                ]
-            )
+        # from module.submodule import name
+        patterns.append(
+            {"rule": {"pattern": f"from $_.$_ import {name}"}, "description": "Direct import from submodule"}
+        )
 
-            # Function reference patterns
-            patterns.extend(
-                [
-                    f"$A = {name}",  # Assignment without call
-                    f"callback={name}",  # As callback
-                    f"func={name}",  # As parameter
-                ]
-            )
-
-        elif construct.type == ConstructType.CLASS:
-            # Class instantiation patterns
-            patterns.extend(
-                [
-                    f"{name}($$$)",  # Instantiation
-                    f"$A = {name}($$$)",  # Assignment
-                    f"return {name}($$$)",  # Return instance
-                ]
-            )
-
-            # Inheritance patterns
-            patterns.extend(
-                [
-                    f"class $A({name})",  # Direct inheritance
-                    f"class $A({name}, $$$)",  # Multiple inheritance
-                    f"class $A($$$, {name})",  # Multiple inheritance
-                ]
-            )
-
-            # Type annotation patterns
-            patterns.extend(
-                [
-                    f"$A: {name}",  # Variable annotation
-                    f"-> {name}",  # Return annotation
-                    f"$A: list[{name}]",  # Generic annotation
-                    f"$A: Optional[{name}]",  # Optional annotation
-                ]
-            )
-
-        elif construct.type == ConstructType.METHOD:
-            # Method call patterns
-            patterns.extend(
-                [
-                    f"$A.{name}($$$)",  # Method call
-                    f"self.{name}($$$)",  # Self method call
-                    f"super().{name}($$$)",  # Super call
-                ]
-            )
-
-        elif construct.type == ConstructType.VARIABLE:
-            # Variable usage patterns
-            patterns.extend(
-                [
-                    f"{name}",  # Direct usage
-                    f"{name}.$A",  # Attribute access
-                    f"{name}[$A]",  # Subscript
-                    f"$A = {name}",  # Assignment from
-                    f"{name} = $A",  # Assignment to
-                ]
-            )
+        # import module (if construct is a module, this requires matching module name)
+        if construct.type == ConstructType.MODULE:
+            # ast-grep might need specific patterns for module imports if 'name' is 'module.submodule'
+            # For a simple module name:
+            patterns.append({"rule": {"pattern": f"import {name}"}, "description": "Module import"})
+            patterns.append({"rule": {"pattern": f"import {name} as $_"}, "description": "Module import with alias"})
 
         return patterns
 
-    def _search_pattern(self, pattern: str, files: list[Path]) -> list[Reference]:
+    def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
         """
-        Search for a pattern across files using ast-grep.
+        Uses ast-grep to find structural usages of the construct.
 
         Args:
-            pattern: ast-grep pattern to search for
-            files: List of files to search in
+            construct: The construct to find usages for.
+            search_paths: List of Python files to search within.
 
         Returns:
-            List of references found
+            A list of Reference objects.
         """
-        references = []
+        if SgRoot is None or TreeSitterLang is None:
+            logger.error("AstGrepAnalyzer cannot function because SgRoot or TreeSitterLang is not imported.")
+            return []
 
-        # Process files in batches to avoid command line length limits
-        for file_batch in self._batch_files(files, 50):
-            cmd = (
-                self.astgrep_cmd
-                + [
-                    "--lang",
-                    "python",
-                    "--pattern",
-                    pattern,
-                    "--json",
-                ]
-                + [str(f) for f in file_batch]
-            )
+        logger.debug(f"AstGrepAnalyzer looking for usages of {construct.full_name} in {len(search_paths)} paths.")
+        references: list[Reference] = []
+
+        patterns_with_desc = self._get_ast_grep_patterns(construct)
+
+        for file_path in search_paths:
+            if not file_path.is_file() or not file_path.exists():
+                logger.warning(f"Skipping non-existent or non-file path: {file_path}")
+                continue
 
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-                if result.stdout:
-                    matches = self._parse_astgrep_output(result.stdout)
-                    references.extend(matches)
-            except subprocess.SubprocessError as e:
-                logger.debug(f"ast-grep search failed for pattern '{pattern}': {e}")
+                file_content = file_path.read_text(encoding="utf-8")
+                sg_root = SgRoot(file_content, TreeSitterLang.Python)  # Use Python language
 
-        return references
+                for item in patterns_with_desc:
+                    pattern_config = SGConfig(rule=item["rule"])
+                    description = item["description"]
 
-    def _parse_astgrep_output(self, output: str) -> list[Reference]:
-        """
-        Parse ast-grep JSON output to extract references.
+                    for node_match in sg_root.find_all(pattern_config):
+                        # node_match is an SgNode object
+                        line_number = node_match.range().start.line + 1  # ast-grep is 0-indexed
+                        column_number = node_match.range().start.col  # ast-grep is 0-indexed
 
-        Args:
-            output: ast-grep JSON output
+                        # Extract context (e.g., the matched line)
+                        # SgNode.text() gives the matched text. For context, we might need the line.
+                        start_line_idx = node_match.range().start.line
+                        end_line_idx = node_match.range().end.line
 
-        Returns:
-            List of references
-        """
-        references = []
+                        lines = file_content.splitlines()
+                        context_lines = lines[start_line_idx : end_line_idx + 1]
+                        context = " | ".join(l.strip() for l in context_lines)
 
-        try:
-            # ast-grep outputs one JSON object per line
-            for line in output.strip().split("\n"):
-                if not line:
-                    continue
-
-                match = json.loads(line)
-
-                # Extract file path and location
-                file_path = Path(match.get("file", ""))
-
-                # Get match location
-                range_info = match.get("range", {})
-                start = range_info.get("start", {})
-                line = start.get("line", 0) + 1  # ast-grep uses 0-based lines
-                column = start.get("column", 0)
-
-                # Get matched text as context
-                text = match.get("text", "")
-
-                if file_path and line > 0:
-                    references.append(
-                        Reference(
-                            file_path=file_path,
-                            line_number=line,
-                            column=column,
-                            context=text[:100],  # Limit context length
+                        logger.debug(
+                            f"Found match for '{construct.name}' ({description}) in {file_path}:{line_number} "
+                            f"Context: {context[:100]}"
                         )
-                    )
+                        references.append(
+                            Reference(
+                                file_path=file_path,
+                                line_number=line_number,
+                                column_number=column_number,
+                                context=context,
+                            )
+                        )
+            except Exception as e:
+                logger.error(f"Error processing file {file_path} with ast-grep for construct {construct.name}: {e}")
 
-        except json.JSONDecodeError as e:
-            logger.debug(f"Failed to parse ast-grep output: {e}")
-
+        logger.debug(f"AstGrepAnalyzer found {len(references)} references for {construct.full_name}.")
         return references
 
-    def _batch_files(self, files: list[Path], batch_size: int) -> list[list[Path]]:
+    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
         """
-        Split files into batches for processing.
-
-        Args:
-            files: List of files
-            batch_size: Size of each batch
-
-        Returns:
-            List of file batches
+        Analyze a batch of constructs.
+        For ast-grep, this will call find_usages for each construct.
+        Batching source file parsing could be an optimization if ast-grep supports it directly.
         """
-        return [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+        results = {}
+        if SgRoot is None:  # Guard if ast-grep is not available
+            for construct in constructs:
+                results[construct] = []
+            return results
+
+        for construct in constructs:
+            results[construct] = self.find_usages(construct, search_paths)
+        return results
+
+    def __del__(self) -> None:
+        logger.debug("AstGrepAnalyzer instance being deleted.")
+
+    def close(self) -> None:
+        logger.debug("AstGrepAnalyzer closed (no specific resources to release).")

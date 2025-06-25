@@ -12,7 +12,6 @@ Used in:
 
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 import libcst as cst
 from libcst import SimpleString
@@ -387,7 +386,7 @@ class DocstringModifier(cst.CSTTransformer):
                 if len(old_stmt.body) == 1 and isinstance(old_stmt.body[0], cst.Expr):
                     new_expr = old_stmt.body[0].with_changes(value=new_docstring_node)
                     new_stmt = old_stmt.with_changes(body=[new_expr])
-                    new_body = [new_stmt] + old_body[1:]
+                    new_body = [new_stmt, *old_body[1:]]
                     return node.with_changes(body=node.body.with_changes(body=new_body))
 
         return node
@@ -623,7 +622,7 @@ class DocstringCleaner(cst.CSTTransformer):
                 if len(old_stmt.body) == 1 and isinstance(old_stmt.body[0], cst.Expr):
                     new_expr = old_stmt.body[0].with_changes(value=new_docstring_node)
                     new_stmt = old_stmt.with_changes(body=[new_expr])
-                    new_body = [new_stmt] + old_body[1:]
+                    new_body = [new_stmt, *old_body[1:]]
                     return node.with_changes(body=node.body.with_changes(body=new_body))
 
         return node

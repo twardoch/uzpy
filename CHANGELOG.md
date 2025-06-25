@@ -64,15 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Incremental analysis support
 
 #### 📦 New Dependencies
-- Performance: `pyright`, `ast-grep-py`, `diskcache`, `multiprocessing-logging`
-- CLI: `typer`, `pydantic-settings`, `watchdog`
-- Analytics: `duckdb`, `sqlalchemy`, `msgpack`
-- Advanced: `pygls` (LSP), `ray` (distributed processing)
+- Core Additions: `ast-grep-py` (for AstGrepAnalyzer), `diskcache` (for caching layers), `multiprocessing-logging` (for parallel processing).
+- Modern CLI: `typer` (for `uzpy-modern` CLI), `pydantic-settings` (for configuration), `watchdog` (for file watching).
+- Note: `ruff` is used as a CLI tool (dev dependency) and `pyright` is expected to be available as a CLI tool. Other analytics/advanced dependencies like `duckdb`, `sqlalchemy`, `pygls`, `ray` are noted as planned for future extension.
 
 ### Changed
-- Pipeline now uses stacked analyzers: Modern/Traditional → Cached → Parallel
-- CLI can use modern interface via `UZPY_MODERN_CLI=1` environment variable
-- Default to modern analyzers with fallback to traditional ones
+- Core pipeline (`src/uzpy/pipeline.py`) refactored to accept pre-configured parser and analyzer instances, allowing flexible stack configurations (e.g., cached, parallel, modern/traditional).
+- Default CLI remains `uzpy` (Fire-based). New `uzpy-modern` (Typer-based) provides access to new features and configuration.
 
 ### Fixed
 - **Complete Exclusion Pattern Fix**: Fixed exclusion patterns at all three levels of analysis
