@@ -39,30 +39,32 @@ classifiers = [
 ]
 
 dependencies = [
-    # Core dependencies (existing)
+    # Core dependencies  
     "tree-sitter>=0.20.0",
     "tree-sitter-python>=0.20.0",
-    "rope>=1.7.0",
-    "jedi>=0.19.0",
     "libcst>=1.0.0",
-    "fire>=0.5.0",
-    "rich>=13.0.0", # Retaining rich as Typer can use it
+    "rich>=13.0.0",
     "loguru>=0.7.0",
     "pathspec>=0.11.0",
-
-    # --- NEW DEPENDENCIES START ---
-    # Performance boosters
-    # Note: pyright is expected to be available as a command-line tool, not listed as a direct dependency.
-    # ruff is in dev dependencies, will be used as a command-line tool.
-    "ast-grep-py>=0.21.0",           # Structural search (Python bindings for ast-grep)
+    
+    # Traditional analyzers (reliable fallbacks)
+    "rope>=1.7.0",                   # Robust refactoring and analysis
+    "jedi>=0.19.0",                  # Python completion and analysis
+    
+    # Modern analysis tools
+    "pyright>=1.1.370",              # Fast cross-file analysis
+    "ast-grep-py>=0.21.0",           # Structural search (Python bindings)
     "diskcache>=5.6.3",              # Persistent caching
-    "multiprocessing-logging>=0.3.4", # Logging for multiprocessing
-
+    
     # Modern CLI
     "typer>=0.12.0",                 # Modern CLI framework
     "pydantic-settings>=2.3.0",      # Configuration management
-    "watchdog>=4.0.1",               # File monitoring for watch mode
-    # --- NEW DEPENDENCIES END ---
+    "watchdog>=4.0.1",               # File monitoring
+    
+    # Analytics & Storage  
+    "duckdb>=0.10.0",                # Fast analytical queries
+    "sqlalchemy>=2.0.30",            # ORM for structured storage
+    "msgpack>=1.0.8",                # Fast serialization
 ]
 
 # Author information
@@ -366,16 +368,4 @@ ban-relative-imports = 'all' # Ban all relative imports for consistency
     'FBT002',  # Boolean default value (common in test parameters)
 ]
 'src/uzpy/modifier/libcst_modifier.py' = ['N802'] # LibCST visitor methods use CapWords
-'src/uzpy/cli.py' = ['FBT001', 'FBT002'] # Fire CLI uses boolean flags
-'src/uzpy/cli_modern.py' = ['FBT001', 'FBT002'] # Typer CLI can use boolean flags
-
-# Ensure ruff format is also configured if not using default
-[tool.ruff.format]
-# preview = true # Enable preview features if desired
-# indent-style = "space"
-# quote-style = "double"
-# docstring-code-format = true
-# docstring-code-line-length = "dynamic"
-# line-ending = "lf" # Or "auto"
-# respect-gitignore = true # Added as per AGENT.md instructions for format command
-# target-version = "py311" # Added as per AGENT.md instructions for format command
+'src/uzpy/cli_modern.py' = ['FBT001', 'FBT002'] # Typer CLI uses boolean flags

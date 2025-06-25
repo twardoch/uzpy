@@ -2,6 +2,9 @@
 
 """
 Analysis module for finding construct usage across codebases.
+
+Combines modern high-performance analyzers (Ruff, Pyright, ast-grep) with
+proven traditional analyzers (Rope, Jedi) as smart fallbacks.
 """
 
 from uzpy.analyzer.astgrep_analyzer import AstGrepAnalyzer
@@ -17,7 +20,7 @@ from uzpy.analyzer.ruff_analyzer import RuffAnalyzer
 __all__ = [
     "AstGrepAnalyzer",
     "CachedAnalyzer",
-    "HybridAnalyzer",
+    "HybridAnalyzer", 
     "JediAnalyzer",
     "ModernHybridAnalyzer",
     "ParallelAnalyzer",

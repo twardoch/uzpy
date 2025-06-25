@@ -3,9 +3,10 @@
 """
 Cached analyzer decorator for uzpy.
 
-This module provides a CachedAnalyzer class that can wrap any uzpy analyzer
-to add a persistent caching layer using diskcache. This helps to speed up
-repeated analysis runs by caching results of file parsing and construct analysis.
+This module provides a caching wrapper that can be applied to any analyzer
+to cache parsed constructs and analysis results, significantly improving
+performance for repeated operations on the same files.
+
 """
 
 import hashlib
@@ -22,8 +23,14 @@ class CachedAnalyzer:
     """
     A wrapper class that adds caching functionality to an underlying analyzer.
 
-    Uses diskcache to store and retrieve analysis results, reducing redundant
-    computation for unchanged files or constructs.
+    This class wraps an existing analyzer and adds persistent caching
+    using diskcache. It caches both parsed constructs and analysis results,
+    invalidating cache entries when files are modified.
+
+    Used in:
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/cli_modern.py
+    - src/uzpy/pipeline.py
     """
 
     def __init__(self, analyzer: Any, cache_dir: Path, cache_name: str = "analyzer_cache"):
@@ -31,9 +38,9 @@ class CachedAnalyzer:
         Initialize the CachedAnalyzer.
 
         Args:
-            analyzer: The analyzer instance to wrap (e.g., HybridAnalyzer, RuffAnalyzer).
-            cache_dir: The directory where the cache will be stored.
-            cache_name: The name of the cache subdirectory.
+            analyzer: The underlying analyzer to wrap
+            cache_dir: Directory for cache storage (defaults to ~/.uzpy/cache)
+
         """
         self.analyzer = analyzer
         self.cache_path = cache_dir / cache_name
@@ -48,7 +55,8 @@ class CachedAnalyzer:
             file_path: The path to the file.
 
         Returns:
-            A string hash representing the file's state.
+            Hash string combining content hash and mtime
+
         """
         try:
             stat = file_path.stat()
@@ -75,21 +83,10 @@ class CachedAnalyzer:
             search_paths_hash: A hash representing the state of all search paths.
 
         Returns:
-            A string cache key.
-        """
-        file_hash = self._get_file_hash(construct.file_path)
-        # Using a tuple for the key components before joining, for clarity
-        key_parts = (
-            "construct_analysis",
-            construct.full_name,
-            str(construct.file_path.name),  # Use relative path or name for better key stability
-            file_hash,
-            str(construct.line_number),
-            search_paths_hash,
-        )
-        return ":".join(key_parts)
+            List of references to the construct
 
-    def _get_search_paths_hash(self, search_paths: list[Path]) -> str:
+        Used in:
+        - src/uzpy/analyzer/parallel_analyzer.py
         """
         Generate a hash representing the state of all files in search_paths.
         This is important because changes in reference files can invalidate
@@ -139,10 +136,12 @@ class CachedAnalyzer:
             logger.error(f"Wrapped analyzer {type(self.analyzer)} does not have a callable 'find_usages' method.")
             return []
 
-        result = self.analyzer.find_usages(construct, search_paths)
-        self.cache.set(cache_key, result)
-        logger.debug(f"Stored analysis result for {construct.full_name} in cache (key: {cache_key})")
-        return result
+    def clear_cache(self):
+        """Clear all cached data.
+
+"""
+        self.cache.clear()
+        logger.info("Cache cleared")
 
     def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
         """
@@ -153,7 +152,10 @@ class CachedAnalyzer:
             search_paths: A list of paths to search for references.
 
         Returns:
-            A dictionary mapping constructs to their list of references.
+            Dictionary with cache statistics
+
+        Used in:
+        - src/uzpy/cli_modern.py
         """
         results = {}
         search_paths_hash = self._get_search_paths_hash(search_paths)

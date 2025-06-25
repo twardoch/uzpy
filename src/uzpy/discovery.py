@@ -30,6 +30,7 @@ class FileDiscovery:
     - discovery.py
     - pipeline.py
     - src/uzpy/cli.py
+    - src/uzpy/cli_modern.py
     - src/uzpy/pipeline.py
     - tests/test_discovery.py
     - uzpy/cli.py
@@ -93,6 +94,7 @@ class FileDiscovery:
         - discovery.py
         - pipeline.py
         - src/uzpy/cli.py
+        - src/uzpy/cli_modern.py
         - src/uzpy/pipeline.py
         - tests/test_discovery.py
         - uzpy/cli.py

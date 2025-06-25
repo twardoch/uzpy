@@ -14,7 +14,9 @@ from uzpy.discovery import FileDiscovery, discover_files
 
 @pytest.fixture
 def temp_project():
-    """Create a temporary project structure for testing."""
+    """Create a temporary project structure for testing.
+
+"""
     with tempfile.TemporaryDirectory() as tmp_dir:
         root = Path(tmp_dir)
 
@@ -33,7 +35,9 @@ def temp_project():
 
 
 def test_file_discovery_basic(temp_project):
-    """Test basic file discovery functionality."""
+    """Test basic file discovery functionality.
+
+"""
     discovery = FileDiscovery()
     files = list(discovery.find_python_files(temp_project))
 
@@ -50,7 +54,9 @@ def test_file_discovery_basic(temp_project):
 
 
 def test_file_discovery_single_file(temp_project):
-    """Test discovery of a single file."""
+    """Test discovery of a single file.
+
+"""
     discovery = FileDiscovery()
     single_file = temp_project / "main.py"
     files = list(discovery.find_python_files(single_file))
@@ -60,7 +66,9 @@ def test_file_discovery_single_file(temp_project):
 
 
 def test_file_discovery_nonexistent_path():
-    """Test discovery with non-existent path."""
+    """Test discovery with non-existent path.
+
+"""
     discovery = FileDiscovery()
     nonexistent = Path("/this/path/does/not/exist")
 
@@ -69,7 +77,9 @@ def test_file_discovery_nonexistent_path():
 
 
 def test_discover_files_function(temp_project):
-    """Test the convenience discover_files function."""
+    """Test the convenience discover_files function.
+
+"""
     edit_files, ref_files = discover_files(temp_project, temp_project)
 
     assert len(edit_files) >= 3  # main.py, utils.py, test_main.py
@@ -77,7 +87,9 @@ def test_discover_files_function(temp_project):
 
 
 def test_custom_exclude_patterns(temp_project):
-    """Test custom exclude patterns."""
+    """Test custom exclude patterns.
+
+"""
     # Create a file that should be excluded
     (temp_project / "secret.py").write_text("# Secret file")
 
@@ -90,7 +102,9 @@ def test_custom_exclude_patterns(temp_project):
 
 
 def test_private_folder_exclusion(temp_project):
-    """Test that _private folder exclusion works correctly."""
+    """Test that _private folder exclusion works correctly.
+
+"""
     # Create _private folder with files
     private_dir = temp_project / "_private"
     private_dir.mkdir()
@@ -121,7 +135,9 @@ def test_private_folder_exclusion(temp_project):
 
 
 def test_private_folder_exclusion_glob_pattern(temp_project):
-    """Test that _private/** folder exclusion works correctly."""
+    """Test that _private/** folder exclusion works correctly.
+
+"""
     # Create _private folder with files
     private_dir = temp_project / "_private"
     private_dir.mkdir()

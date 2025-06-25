@@ -3,10 +3,9 @@
 """
 File system watcher for uzpy.
 
-This module provides the UzpyWatcher class, which uses the `watchdog`
-library to monitor specified paths for file system changes (creations,
-modifications, deletions). When relevant changes are detected (e.g., to .py files),
-it triggers a callback function, typically to re-run analysis.
+This module provides real-time monitoring of Python files and automatic
+re-analysis when changes are detected.
+
 """
 
 import sys  # Added for __main__ example
@@ -23,8 +22,11 @@ from rich.console import Console  # Added for __main__ example
 
 class UzpyWatcher(FileSystemEventHandler):
     """
-    A file system event handler that watches for changes in Python files
-    and triggers a callback with debouncing.
+    File system event handler for watching Python files.
+
+    This class monitors changes to Python files and triggers re-analysis
+    when modifications are detected.
+
     """
 
     def __init__(
@@ -38,53 +40,24 @@ class UzpyWatcher(FileSystemEventHandler):
         Initialize the UzpyWatcher.
 
         Args:
-            callback: Function to call when relevant file changes are detected.
-                      It will be called with a set of modified/created/deleted relevant file paths.
-            watch_paths: A list of Path objects to monitor.
-            exclude_patterns: A list of glob patterns to ignore. (Handled by FileDiscovery logic)
-            debounce_interval: Time in seconds to wait for more changes before triggering callback.
+            edit_path: Path to watch for changes
+            ref_path: Reference path for analysis
+            exclude_patterns: Patterns to exclude from watching
+            console: Rich console for output
+
         """
-        super().__init__()
-        self.callback = callback
-        self.watch_paths = [p.resolve() for p in watch_paths]  # Ensure absolute paths
-        self.exclude_patterns = exclude_patterns
-        self.debounce_interval = debounce_interval
+        self.edit_path = edit_path
+        self.ref_path = ref_path
+        self.exclude_patterns = exclude_patterns or []
+        self.console = console or Console()
+        self.last_analysis_time = 0
+        self.pending_files = set()
+        self.analysis_count = 0
 
-        self._changed_files: Set[Path] = set()
-        self._debounce_lock = threading.Lock()
-        self._timer: Optional[threading.Timer] = None
+    def on_modified(self, event):
+        """Handle file modification events.
 
-        logger.info(f"UzpyWatcher initialized. Debounce interval: {self.debounce_interval}s.")
-        logger.debug(f"Watching paths: {[str(p) for p in self.watch_paths]}")
-
-    def _is_relevant_file(self, file_path_str: str) -> bool:
-        """Check if the file is a Python file and not excluded."""
-        if not file_path_str:
-            return False
-        file_path = Path(file_path_str)
-        if file_path.suffix.lower() == ".py":
-            is_watched = any(
-                watch_root in file_path.resolve().parents or watch_root == file_path.resolve()
-                for watch_root in self.watch_paths
-            )
-            if is_watched:
-                return True
-        return False
-
-    def _trigger_callback(self) -> None:
-        """Triggers the callback with collected file paths."""
-        with self._debounce_lock:
-            if self._changed_files:
-                logger.info(f"Debounce triggered. Processing {len(self._changed_files)} changed files.")
-                try:
-                    self.callback(self._changed_files.copy())
-                except Exception as e:
-                    logger.error(f"Error in watcher callback: {e}", exc_info=True)
-                self._changed_files.clear()
-            self._timer = None  # Reset timer
-
-    def _handle_event(self, event: FileSystemEvent):
-        """Generic event handler for file system events."""
+"""
         if event.is_directory:
             return
 
@@ -95,59 +68,34 @@ class UzpyWatcher(FileSystemEventHandler):
         if not file_path_str:
             return
 
-        if self._is_relevant_file(file_path_str):
-            logger.debug(f"Relevant file event: {event.event_type} on {file_path_str}")
-            with self._debounce_lock:
-                self._changed_files.add(Path(file_path_str).resolve())
-                if self._timer:
-                    self._timer.cancel()
-                self._timer = threading.Timer(self.debounce_interval, self._trigger_callback)
-                self._timer.start()
-                logger.debug(f"Debounce timer (re)started for {self.debounce_interval}s.")
+        # Check if file matches exclude patterns
+        if self._is_excluded(file_path):
+            return
 
-    def on_modified(self, event: FileSystemEvent):
-        super().on_modified(event)
-        self._handle_event(event)
+        logger.debug(f"File modified: {file_path}")
+        self.pending_files.add(file_path)
 
-    def on_created(self, event: FileSystemEvent):
-        super().on_created(event)
-        self._handle_event(event)
+        # Debounce - wait a bit before analyzing
+        current_time = time.time()
+        if current_time - self.last_analysis_time > 1.0:  # 1 second debounce
+            self._trigger_analysis()
 
-    def on_deleted(self, event: FileSystemEvent):
-        super().on_deleted(event)
-        self._handle_event(event)
+    def _is_excluded(self, file_path: Path) -> bool:
+        """Check if a file matches any exclude pattern.
 
-    def on_moved(self, event: FileSystemEvent):
-        super().on_moved(event)
-        # A move involves a source (deleted) and destination (created)
-        # Handle both if they are relevant Python files
-        # FileSystemEvent itself doesn't make src_path/dest_path part of its direct attributes for _handle_event
-        # So, we pass event and let _handle_event extract src_path or dest_path
-        self._handle_event(event)
+"""
+        from pathspec import PathSpec
 
+        if self.exclude_patterns:
+            spec = PathSpec.from_lines("gitwildmatch", self.exclude_patterns)
+            return spec.match_file(str(file_path))
+        return False
 
-class WatcherOrchestrator:
-    """
-    Manages the Watchdog observer and event handler.
-    """
+    def _trigger_analysis(self):
+        """Trigger re-analysis of the codebase.
 
-    def __init__(
-        self,
-        paths_to_watch: List[Path],
-        on_change_callback: Callable[[Set[Path]], None],
-        exclude_patterns: List[str],
-        debounce_interval: float = 1.0,
-    ):
-        self.paths_to_watch = paths_to_watch
-        self.on_change_callback = on_change_callback
-        self.exclude_patterns = exclude_patterns
-        self.debounce_interval = debounce_interval
-        self.observer = Observer()
-
-    def start(self):
-        """Starts the file system watcher."""
-        if not self.paths_to_watch:
-            logger.warning("Watcher: No paths specified to watch.")
+"""
+        if not self.pending_files:
             return
 
         event_handler = UzpyWatcher(
@@ -170,42 +118,80 @@ class WatcherOrchestrator:
         self.observer.start()
         logger.info("File system watcher started.")
         try:
-            while self.observer.is_alive():
-                self.observer.join(1)
-        except KeyboardInterrupt:
-            logger.info("Watcher interrupted by user (KeyboardInterrupt).")
-        finally:
-            self.stop()
+            # Run analysis
+            start_time = time.time()
+            usage_results = run_analysis_and_modification(
+                edit_path=self.edit_path,
+                ref_path=self.ref_path,
+                exclude_patterns=self.exclude_patterns,
+                dry_run=False,
+            )
 
-    def stop(self):
-        """Stops the file system watcher."""
-        if self.observer.is_alive():
-            self.observer.stop()
-            logger.info("Watcher stopping...")
-        self.observer.join()
-        logger.info("File system watcher stopped.")
+            elapsed = time.time() - start_time
+
+            # Show results
+            total_constructs = len(usage_results)
+            constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
+
+            self.console.print(
+                f"[green]✅ Analysis complete in {elapsed:.2f}s. "
+                f"Found usages for {constructs_with_refs}/{total_constructs} constructs.[/green]"
+            )
+
+        except Exception as e:
+            self.console.print(f"[red]❌ Analysis failed: {e}[/red]")
+            logger.exception("Analysis error in watch mode")
 
 
-if __name__ == "__main__":
-    logger.remove()
-    logger.add(sys.stderr, level="DEBUG")
+def create_watch_status_table(path: Path, ref_path: Path, exclude_patterns: list[str], analysis_count: int) -> Table:
+    """Create a status table for watch mode display.
 
-    test_dir = Path("test_watch_dir")
-    test_dir.mkdir(exist_ok=True)
-    (test_dir / "sample1.py").write_text("print('hello')")
-    (test_dir / "sample2.txt").write_text("some text")
+"""
+    table = Table(title="uzpy Watch Mode", box=None)
+    table.add_column("Setting", style="cyan")
+    table.add_column("Value", style="green")
 
-    def my_callback(changed_files: Set[Path]):
-        console = Console()
-        console.print("\n[bold green]Callback triggered![/bold green] Files changed:")
-        for f_path in changed_files:
-            console.print(f"- {f_path} ({'exists' if f_path.exists() else 'deleted/moved'})")
-        logger.info(f"Callback executed for: {changed_files}")
+    table.add_row("Watching", str(path))
+    table.add_row("Reference Path", str(ref_path))
+    if exclude_patterns:
+        table.add_row("Exclude Patterns", ", ".join(exclude_patterns))
+    table.add_row("Analyses Run", str(analysis_count))
+    table.add_row("Status", "[yellow]Watching for changes...[/yellow]")
 
-    logger.info(f"Starting watcher example on directory: {test_dir.resolve()}")
-    orchestrator = WatcherOrchestrator(
-        paths_to_watch=[test_dir], on_change_callback=my_callback, exclude_patterns=[], debounce_interval=2.0
-    )
+    return table
+
+
+def watch_directory(
+    edit_path: Path,
+    ref_path: Path,
+    exclude_patterns: list[str] | None = None,
+) -> None:
+    """
+    Watch a directory for changes and automatically re-run analysis.
+
+    Args:
+        edit_path: Path to watch
+        ref_path: Reference path for analysis
+        exclude_patterns: Patterns to exclude from watching
+
+    Used in:
+    - src/uzpy/cli_modern.py
+    """
+    console = Console()
+
+    # Create event handler and observer
+    event_handler = UzpyWatcher(edit_path, ref_path, exclude_patterns, console)
+    observer = Observer()
+
+    # Schedule the observer
+    observer.schedule(event_handler, str(edit_path), recursive=True)
+
+    console.print("\n[bold blue]uzpy Watch Mode[/bold blue]")
+    console.print("Press Ctrl+C to stop watching\n")
+
+    # Start watching
+    observer.start()
+
     try:
         orchestrator.start()
     except Exception as e:

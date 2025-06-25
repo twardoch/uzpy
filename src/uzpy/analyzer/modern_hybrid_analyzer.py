@@ -3,14 +3,14 @@
 """
 Modern Hybrid Analyzer for uzpy.
 
-This analyzer orchestrates a suite of modern analysis tools including
-Ruff, ast-grep, and Pyright. It aims for a balance of speed and accuracy
-by using faster tools for initial sweeps and more comprehensive tools
-for deeper analysis or when initial results are insufficient.
+This module provides a high-performance analyzer that uses multiple
+modern tools (Ruff, Pyright, ast-grep) in combination for comprehensive
+and fast usage detection.
+
 """
 
 from pathlib import Path
-from typing import Any  # Optional removed
+from typing import Optional
 
 from loguru import logger
 
@@ -24,8 +24,21 @@ from uzpy.types import Construct, Reference
 
 class ModernHybridAnalyzer:
     """
-    Orchestrates modern analyzers (Ruff, ast-grep, Pyright) with a tiered strategy.
-    Can also incorporate traditional analyzers (Jedi, Rope) as fallbacks or for comparison.
+    Modern hybrid analyzer combining multiple fast analysis tools.
+
+    This analyzer uses a tiered approach:
+    1. Ruff for quick basic detection
+    2. ast-grep for structural pattern matching  
+    3. Pyright for accurate type-based analysis
+    4. Traditional analyzers (Rope/Jedi) as smart fallbacks
+
+    Each tier adds more accuracy but takes more time. The traditional
+    analyzers serve as reliable fallbacks when modern tools fail,
+    ensuring comprehensive coverage.
+
+    Used in:
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/pipeline.py
     """
 
     def __init__(
@@ -38,11 +51,10 @@ class ModernHybridAnalyzer:
         Initialize the ModernHybridAnalyzer.
 
         Args:
-            project_root: The root directory of the project.
-            python_executable: Path to the python executable for Pyright.
-            config: Configuration dictionary for analyzer behavior.
-                    Example: {"use_ruff": True, "use_astgrep": True, "use_pyright": True,
-                              "short_circuit_threshold": 5}
+            project_root: Root directory of the project
+            exclude_patterns: Patterns to exclude from analysis
+            use_fallback: Whether to use traditional analyzers as fallbacks
+
         """
         self.project_root = project_root
         self.config = config if config is not None else {}
@@ -54,15 +66,16 @@ class ModernHybridAnalyzer:
         else:
             self.ruff_analyzer = None
 
-        if self.config.get("use_astgrep", True):
-            self.ast_grep_analyzer = AstGrepAnalyzer(project_root)
-        else:
-            self.ast_grep_analyzer = None
-
-        if self.config.get("use_pyright", True):
-            self.pyright_analyzer = PyrightAnalyzer(project_root, python_executable)
-        else:
-            self.pyright_analyzer = None
+        # Initialize fallback analyzer if enabled
+        self.fallback_analyzer = None
+        if use_fallback:
+            try:
+                from uzpy.analyzer.hybrid_analyzer import HybridAnalyzer
+                self.fallback_analyzer = HybridAnalyzer(project_root, exclude_patterns)
+                logger.debug("Initialized traditional analyzer fallback")
+            except Exception as e:
+                logger.warning(f"Failed to initialize fallback analyzer: {e}")
+                self.use_fallback = False
 
         # Threshold for short-circuiting (if enough references are found)
         self.short_circuit_threshold = self.config.get("short_circuit_threshold", 0)  # 0 means no short-circuit
@@ -85,8 +98,11 @@ class ModernHybridAnalyzer:
         2. ast-grep (if enabled): Structural patterns, more precise than text, faster than full type analysis.
         3. Pyright (if enabled): Deep type analysis, most accurate, potentially slower.
 
-        The process can short-circuit if a sufficient number of references are found by earlier stages.
-        Results from different analyzers are merged and deduplicated.
+        Returns:
+            List of references to the construct
+
+        Used in:
+        - src/uzpy/analyzer/cached_analyzer.py
         """
         all_references: dict[tuple[Path, int, int], Reference] = {}  # Use (path, line, col) as key for deduplication
 
@@ -112,83 +128,17 @@ class ModernHybridAnalyzer:
             except Exception as e:
                 logger.error(f"Error during RuffAnalyzer execution for {construct.full_name}: {e}")
 
-        # Stage 2: ast-grep Analyzer
-        if self.ast_grep_analyzer:
-            logger.debug(f"Running AstGrepAnalyzer for {construct.full_name}...")
+        # Tier 4: Fallback to traditional analyzers if needed and enabled
+        if self.use_fallback and self.fallback_analyzer and len(all_references) == 0:
             try:
-                ast_grep_refs = self.ast_grep_analyzer.find_usages(construct, search_paths)
-                _add_references(ast_grep_refs)
-                if self.short_circuit_threshold > 0 and len(all_references) >= self.short_circuit_threshold:
-                    logger.info(
-                        f"Short-circuiting after AstGrepAnalyzer for {construct.full_name}. "
-                        f"Found {len(all_references)} references."
-                    )
-                    return list(all_references.values())
+                logger.debug(f"Using traditional analyzer fallback for {construct.name}")
+                fallback_refs = self.fallback_analyzer.find_usages(construct, reference_files)
+                for ref in fallback_refs:
+                    key = (ref.file_path, ref.line_number)
+                    all_references[key] = ref
+                logger.debug(f"Traditional fallback found {len(fallback_refs)} references")
             except Exception as e:
-                logger.error(f"Error during AstGrepAnalyzer execution for {construct.full_name}: {e}")
+                logger.debug(f"Traditional fallback failed: {e}")
 
-        # Stage 3: Pyright Analyzer
-        if self.pyright_analyzer:
-            logger.debug(f"Running PyrightAnalyzer for {construct.full_name}...")
-            try:
-                pyright_refs = self.pyright_analyzer.find_usages(construct, search_paths)
-                _add_references(pyright_refs)
-                # No short-circuit check here as it's the last main stage
-            except Exception as e:
-                logger.error(f"Error during PyrightAnalyzer execution for {construct.full_name}: {e}")
-
-        final_references_list = list(all_references.values())
-        logger.info(
-            f"ModernHybridAnalyzer found {len(final_references_list)} unique references for {construct.full_name}."
-        )
-        return final_references_list
-
-    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
-        """
-        Analyze a batch of constructs using the tiered strategy for each.
-        This method currently iterates and calls `find_usages` for each construct.
-        True batching capabilities would depend on the underlying analyzers.
-        """
-        logger.info(f"ModernHybridAnalyzer starting batch analysis of {len(constructs)} constructs.")
-        results = {}
-        for i, construct in enumerate(constructs):
-            logger.debug(f"Batch processing construct {i + 1}/{len(constructs)}: {construct.full_name}")
-            results[construct] = self.find_usages(construct, search_paths)
-
-        logger.info(f"ModernHybridAnalyzer batch analysis completed for {len(constructs)} constructs.")
-        return results
-
-    def close(self) -> None:
-        """Close any resources held by the underlying analyzers."""
-        if self.ruff_analyzer and hasattr(self.ruff_analyzer, "close"):
-            self.ruff_analyzer.close()
-        if self.ast_grep_analyzer and hasattr(self.ast_grep_analyzer, "close"):
-            self.ast_grep_analyzer.close()
-        if self.pyright_analyzer and hasattr(self.pyright_analyzer, "close"):
-            self.pyright_analyzer.close()
-        logger.info("ModernHybridAnalyzer and its components closed.")
-
-    def __del__(self) -> None:
-        self.close()
-
-    def __getattr__(self, name: str) -> Any:
-        """
-        Delegate attribute access to specific analyzers if the attribute
-        is not found on ModernHybridAnalyzer itself. This could be useful
-        for accessing specific methods of underlying analyzers if needed,
-        though direct interaction is generally discouraged in favor of
-        the hybrid methods.
-        """
-        # Example: try to delegate to Pyright first, then others.
-        if self.pyright_analyzer and hasattr(self.pyright_analyzer, name):
-            return getattr(self.pyright_analyzer, name)
-        if self.ast_grep_analyzer and hasattr(self.ast_grep_analyzer, name):
-            return getattr(self.ast_grep_analyzer, name)
-        if self.ruff_analyzer and hasattr(self.ruff_analyzer, name):
-            return getattr(self.ruff_analyzer, name)
-
-        msg = (
-            f"'{type(self).__name__}' object has no attribute '{name}', "
-            "and it was not found in its configured sub-analyzers."
-        )
-        raise AttributeError(msg)
+        # Return deduplicated references  
+        return list(all_references.values())

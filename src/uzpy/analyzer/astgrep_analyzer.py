@@ -3,10 +3,9 @@
 """
 ast-grep based analyzer for uzpy.
 
-This module provides an AstGrepAnalyzer class that uses the ast-grep tool
-(via its Python bindings `ast-grep-py`) to find Python constructs based on
-structural patterns. This allows for more flexible and precise pattern matching
-than simple text searches.
+This module provides an analyzer that uses ast-grep for intuitive and fast
+structural pattern matching across Python codebases.
+
 """
 
 from pathlib import Path
@@ -33,8 +32,14 @@ from uzpy.types import Construct, ConstructType, Reference
 
 class AstGrepAnalyzer:
     """
-    An analyzer that uses ast-grep for structural code searching.
-    It matches code patterns to find usages of constructs.
+    Structural pattern matching analyzer using ast-grep.
+
+    This analyzer leverages ast-grep's powerful pattern matching capabilities
+    to find complex usage patterns that other analyzers might miss.
+
+    Used in:
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/analyzer/modern_hybrid_analyzer.py
     """
 
     def __init__(self, project_root: Path):
@@ -42,14 +47,20 @@ class AstGrepAnalyzer:
         Initialize the AstGrepAnalyzer.
 
         Args:
-            project_root: The root directory of the project. Used for resolving relative paths.
+            project_root: Root directory of the project
+            exclude_patterns: Patterns to exclude from analysis
+
         """
         self.project_root = project_root
         if SgRoot is None:
             logger.error("ast-grep Python bindings (SgRoot) not available. AstGrepAnalyzer will be non-functional.")
         logger.info(f"AstGrepAnalyzer initialized for project root: {self.project_root}")
 
-    def _get_ast_grep_patterns(self, construct: Construct) -> list[dict[str, str]]:
+        Returns:
+            List of references to the construct
+
+        Used in:
+        - src/uzpy/analyzer/modern_hybrid_analyzer.py
         """
         Generate ast-grep patterns for a given construct.
         See ast-grep pattern syntax: https://ast-grep.github.io/guide/pattern-syntax.html
@@ -60,20 +71,12 @@ class AstGrepAnalyzer:
         # General call pattern (works for functions and methods if object is not specified)
         patterns.append({"rule": {"pattern": f"{name}($$$)"}, "description": "Direct call"})
 
-        # Attribute access / method call (e.g., object.method_name)
-        # $OBJ.{name}($$$) where $OBJ is a metavariable matching any identifier/expression.
-        patterns.append({"rule": {"pattern": "$_.$name($$$)"}, "description": "Method call on object"})
-        patterns.append({"rule": {"pattern": "$_.$name"}, "description": "Attribute access"})
+        Returns:
+            List of ast-grep pattern strings
 
-        if construct.type == ConstructType.CLASS:
-            # Class instantiation
-            patterns.append({"rule": {"pattern": f"{name}($$$)"}, "description": "Class instantiation"})
-            # Type hints
-            patterns.append({"rule": {"pattern": f"$_: {name}"}, "description": "Type hint (variable)"})
-            patterns.append({"rule": {"pattern": f"$_: Optional[{name}]"}, "description": "Type hint (Optional)"})
-            patterns.append({"rule": {"pattern": f"$_: Union[{name}, $$$]"}, "description": "Type hint (Union, first)"})
-            patterns.append({"rule": {"pattern": f"$_: Union[$$$, {name}]"}, "description": "Type hint (Union, other)"})
-            patterns.append({"rule": {"pattern": f"-> {name}"}, "description": "Return type hint"})
+        """
+        patterns = []
+        name = construct.name
 
         # Import patterns
         # from module import name
@@ -112,7 +115,8 @@ class AstGrepAnalyzer:
             search_paths: List of Python files to search within.
 
         Returns:
-            A list of Reference objects.
+            List of references found
+
         """
         if SgRoot is None or TreeSitterLang is None:
             logger.error("AstGrepAnalyzer cannot function because SgRoot or TreeSitterLang is not imported.")
@@ -128,31 +132,39 @@ class AstGrepAnalyzer:
                 logger.warning(f"Skipping non-existent or non-file path: {file_path}")
                 continue
 
-            try:
-                file_content = file_path.read_text(encoding="utf-8")
-                sg_root = SgRoot(file_content, TreeSitterLang.Python)  # Use Python language
+        Returns:
+            List of references
 
-                for item in patterns_with_desc:
-                    pattern_config = SGConfig(rule=item["rule"])
-                    description = item["description"]
+        """
+        references = []
 
-                    for node_match in sg_root.find_all(pattern_config):
-                        # node_match is an SgNode object
-                        line_number = node_match.range().start.line + 1  # ast-grep is 0-indexed
-                        column_number = node_match.range().start.col  # ast-grep is 0-indexed
+        try:
+            # ast-grep outputs one JSON object per line
+            for line in output.strip().split("\n"):
+                if not line:
+                    continue
 
-                        # Extract context (e.g., the matched line)
-                        # SgNode.text() gives the matched text. For context, we might need the line.
-                        start_line_idx = node_match.range().start.line
-                        end_line_idx = node_match.range().end.line
+                match = json.loads(line)
 
-                        lines = file_content.splitlines()
-                        context_lines = lines[start_line_idx : end_line_idx + 1]
-                        context = " | ".join(l.strip() for l in context_lines)
+                # Extract file path and location
+                file_path = Path(match.get("file", ""))
 
-                        logger.debug(
-                            f"Found match for '{construct.name}' ({description}) in {file_path}:{line_number} "
-                            f"Context: {context[:100]}"
+                # Get match location
+                range_info = match.get("range", {})
+                start = range_info.get("start", {})
+                line = start.get("line", 0) + 1  # ast-grep uses 0-based lines
+                column = start.get("column", 0)
+
+                # Get matched text as context
+                text = match.get("text", "")
+
+                if file_path and line > 0:
+                    references.append(
+                        Reference(
+                            file_path=file_path,
+                            line_number=line,
+                            column=column,
+                            context=text[:100],  # Limit context length
                         )
                         references.append(
                             Reference(
@@ -184,8 +196,8 @@ class AstGrepAnalyzer:
             results[construct] = self.find_usages(construct, search_paths)
         return results
 
-    def __del__(self) -> None:
-        logger.debug("AstGrepAnalyzer instance being deleted.")
+        Returns:
+            List of file batches
 
-    def close(self) -> None:
-        logger.debug("AstGrepAnalyzer closed (no specific resources to release).")
+        """
+        return [files[i : i + batch_size] for i in range(0, len(files), batch_size)]

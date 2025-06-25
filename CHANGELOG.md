@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING CHANGES - Modern-First Architecture (2025-01-06)
+
+**⚠️ BREAKING CHANGE: Modernized CLI interface**
+
+- **Removed traditional CLI** - Fire-based CLI removed, only modern Typer CLI available
+- **Modern-first analyzer stack** - Ruff, Pyright, ast-grep used as primary analyzers
+- **Smart fallback system** - Rope and Jedi analyzers retained as reliable fallbacks
+- **Streamlined dependencies** - Kept all working tools, removed only Fire CLI dependency
+- **Enhanced reliability** - Best of both worlds: speed + comprehensive coverage
+
 ### Added - Performance & Modern Features (2025-01-06)
 
 #### 🚀 Performance Improvements (10-100x faster)

@@ -109,6 +109,7 @@ class TreeSitterParser:
         - parser/tree_sitter_parser.py
         - pipeline.py
         - src/uzpy/cli.py
+        - src/uzpy/parser/cached_parser.py
         - src/uzpy/pipeline.py
         - tests/test_parser.py
         - uzpy/cli.py

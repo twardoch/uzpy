@@ -41,58 +41,15 @@ from uzpy.pipeline import run_analysis_and_modification
 
 # --- Settings Model ---
 class UzpySettings(BaseSettings):
-    """
-    Configuration settings for uzpy, loaded from environment variables or a .env file.
-    """
+    """Configuration settings for uzpy with environment variable support.
 
-    edit_path: Path = Path.cwd()
-    ref_path: Path | None = None
-    exclude_patterns: list[str] = []
-
-    # Analyzer settings
-    analyzer_type: str = "modern_hybrid"  # Options: "modern_hybrid", "hybrid", "rope", "jedi"
-    use_cache: bool = True
-    use_parallel: bool = True
-    num_workers: int | None = None  # Defaults to cpu_count in ParallelAnalyzer
-
-    # ModernHybridAnalyzer specific config
-    mha_use_ruff: bool = True
-    mha_use_astgrep: bool = True
-    mha_use_pyright: bool = True
-    mha_short_circuit_threshold: int = 0  # 0 for no short-circuit
-
-    # Cache settings
-    cache_dir: Path = Path.home() / ".uzpy" / "cache"
-    parser_cache_name: str = "parser_cache"
-    analyzer_cache_name: str = "analyzer_cache"
-
-    # Watcher settings
-    watch_debounce_seconds: float = 1.0
-
-    # General
-    verbose: bool = False
-    log_level: str = "INFO"
-
-    model_config = SettingsConfigDict(
-        env_prefix="UZPY_",
-        env_file=".uzpy.env",
-        env_file_encoding="utf-8",
-        extra="ignore",  # Ignore extra fields from .env or environment
-    )
-
-    def get_effective_ref_path(self) -> Path:
-        return self.ref_path if self.ref_path else self.edit_path
+"""
 
 
-# --- Typer App Initialization ---
-app = typer.Typer(
-    name="uzpy-modern",
-    help="Modern Python code usage analysis and docstring updater.",
-    rich_markup_mode="markdown",
-    context_settings={"help_option_names": ["-h", "--help"]},
-)
-console = Console()
-
+    class Config:
+        """    """
+        env_prefix = "UZPY_"
+        env_file = ".uzpy.env"
 
 # --- Helper Functions ---
 def setup_logging(log_level: str, verbose: bool):
@@ -102,6 +59,10 @@ def setup_logging(log_level: str, verbose: bool):
     else:
         final_log_level = log_level.upper()
 
+def configure_logging(verbose: bool) -> None:
+    """Configure logging with appropriate level and format.
+
+"""
     logger.remove()
     logger.add(
         sys.stderr,
@@ -195,7 +156,12 @@ def main_callback(
     ),
 ):
     """
-    uzpy: Analyze Python code and update docstrings with usage information.
+    🚀 Analyze Python code and update docstrings with usage information.
+
+    This command finds where your functions, classes, and methods are used
+    across your codebase and automatically updates their docstrings with
+    'Used in:' sections.
+
     """
     settings = get_settings(config_file=config)
     # Override verbose and log_level from CLI if provided
@@ -281,7 +247,11 @@ def clean(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show files that would be cleaned."),
 ):
     """
-    Remove all 'Used in:' sections from docstrings.
+    🧹 Clean all 'Used in:' sections from docstrings.
+
+    This command removes all automatically generated usage information
+    from docstrings in the specified path.
+
     """
     settings: UzpySettings = ctx.meta["settings"]
     current_edit_path = edit_path_override if edit_path_override else settings.edit_path
@@ -326,7 +296,11 @@ def cache_management(
     action: str = typer.Argument(..., help="Cache action: 'clear' or 'stats'."),
 ):
     """
-    Manage the uzpy cache (parser and analyzer caches).
+    💾 Manage the analysis cache.
+
+    The cache stores parsed constructs and analysis results to speed up
+    subsequent runs.
+
     """
     settings: UzpySettings = ctx.meta["settings"]
 
@@ -389,6 +363,13 @@ def cache_management(
         console.print(f"[bold red]Error:[/bold red] Unknown cache action '{action}'. Choose 'clear' or 'stats'.")
         raise typer.Exit(code=1)
 
+def display_results_summary(usage_results: dict) -> None:
+    """Display a formatted summary of analysis results.
+
+"""
+    total_constructs = len(usage_results)
+    constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
+    total_references = sum(len(refs) for refs in usage_results.values())
 
 @app.command()
 def watch(
@@ -441,8 +422,11 @@ def watch(
             current_edit_path = settings.edit_path  # Use the original configured edit path for full re-scan
             current_ref_path = settings.get_effective_ref_path()
 
-            console.print(f"Re-analyzing '[cyan]{current_edit_path}[/cyan]'...")
-            _parser, analyzer = _get_analyzer_stack(settings)
+    This command monitors Python files for changes and automatically
+    updates docstrings whenever a file is modified.
+
+    """
+    configure_logging(verbose)
 
             usage_results = run_analysis_and_modification(
                 edit_path=current_edit_path,
@@ -472,7 +456,14 @@ def watch(
 
     orchestrator.start()  # This blocks until Ctrl+C or observer stops
 
-    console.print("Watcher stopped.")
+def cli() -> None:
+    """Main entry point for the modern CLI.
+
+Used in:
+- src/uzpy/__main__.py
+- src/uzpy/cli.py
+"""
+    app()
 
 
 if __name__ == "__main__":

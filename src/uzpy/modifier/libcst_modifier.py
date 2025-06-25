@@ -529,18 +529,26 @@ class DocstringCleaner(cst.CSTTransformer):
     """
 
     def __init__(self):
-        """Initialize the docstring cleaner."""
+        """Initialize the docstring cleaner.
+
+"""
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        """Clean function docstrings by removing usage information."""
+        """Clean function docstrings by removing usage information.
+
+"""
         return self._clean_construct_docstring(updated_node)
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Clean class docstrings by removing usage information."""
+        """Clean class docstrings by removing usage information.
+
+"""
         return self._clean_construct_docstring(updated_node)
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        """Clean module docstrings by removing usage information."""
+        """Clean module docstrings by removing usage information.
+
+"""
         if not updated_node.body:
             return updated_node
 
@@ -559,7 +567,9 @@ class DocstringCleaner(cst.CSTTransformer):
         return updated_node
 
     def _clean_construct_docstring(self, updated_node):
-        """Generic method to clean construct docstrings."""
+        """Generic method to clean construct docstrings.
+
+"""
         # Find and clean the docstring
         docstring_node = self._get_docstring_node(updated_node)
         if docstring_node is None:
@@ -576,7 +586,9 @@ class DocstringCleaner(cst.CSTTransformer):
         return updated_node
 
     def _get_docstring_node(self, node) -> SimpleString | None:
-        """Extract the docstring node from a function, class, or module."""
+        """Extract the docstring node from a function, class, or module.
+
+"""
         body = None
 
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
@@ -597,7 +609,9 @@ class DocstringCleaner(cst.CSTTransformer):
         return None
 
     def _clean_docstring_content(self, current_docstring: str) -> str:
-        """Remove 'Used in:' sections from docstring content."""
+        """Remove 'Used in:' sections from docstring content.
+
+"""
         # Remove quotes from current docstring
         quote_char = '"""' if current_docstring.startswith('"""') else '"'
         content = current_docstring.strip(quote_char)
@@ -613,7 +627,9 @@ class DocstringCleaner(cst.CSTTransformer):
         return f"{quote_char}{cleaned_content}{quote_char}"
 
     def _replace_docstring_in_node(self, node, new_docstring_node):
-        """Replace the docstring in a node."""
+        """Replace the docstring in a node.
+
+"""
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
             # Function or class
             old_body = list(node.body.body)
@@ -639,6 +655,7 @@ class LibCSTCleaner:
     - cli.py
     - modifier/__init__.py
     - src/uzpy/cli.py
+    - src/uzpy/cli_modern.py
     - src/uzpy/modifier/__init__.py
     - uzpy/cli.py
     - uzpy/modifier/__init__.py
@@ -706,6 +723,7 @@ class LibCSTCleaner:
         Used in:
         - cli.py
         - src/uzpy/cli.py
+        - src/uzpy/cli_modern.py
         - uzpy/cli.py
         """
         logger.info(f"Cleaning 'Used in:' sections from {len(file_paths)} files")

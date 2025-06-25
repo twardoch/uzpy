@@ -3,9 +3,10 @@
 """
 Cached parser decorator for uzpy.
 
-This module provides a CachedParser class that can wrap any uzpy parser
-(e.g., TreeSitterParser) to add a persistent caching layer using diskcache.
-This helps to speed up repeated parsing of unchanged files.
+This module provides a caching wrapper that can be applied to any parser
+to cache parsed constructs, significantly improving performance for
+repeated parsing of the same files.
+
 """
 
 import hashlib
@@ -22,8 +23,13 @@ class CachedParser:
     """
     A wrapper class that adds caching functionality to an underlying parser.
 
-    Uses diskcache to store and retrieve parsing results (list of Constructs),
-    reducing redundant computation for unchanged files.
+    This class wraps an existing parser and adds persistent caching
+    using diskcache. It caches parsed constructs and invalidates
+    cache entries when files are modified.
+
+    Used in:
+    - src/uzpy/parser/__init__.py
+    - src/uzpy/pipeline.py
     """
 
     def __init__(self, parser: Any, cache_dir: Path, cache_name: str = "parser_cache"):
@@ -31,9 +37,9 @@ class CachedParser:
         Initialize the CachedParser.
 
         Args:
-            parser: The parser instance to wrap (e.g., TreeSitterParser).
-            cache_dir: The directory where the cache will be stored.
-            cache_name: The name of the cache subdirectory.
+            parser: The underlying parser to wrap
+            cache_dir: Directory for cache storage (defaults to ~/.uzpy/cache)
+
         """
         self.parser = parser
         self.cache_path = cache_dir / cache_name
@@ -48,7 +54,8 @@ class CachedParser:
             file_path: The path to the file.
 
         Returns:
-            A string hash representing the file's state.
+            Hash string combining content hash and mtime
+
         """
         try:
             stat = file_path.stat()
@@ -74,7 +81,10 @@ class CachedParser:
             file_path: The Path object of the file to be parsed.
 
         Returns:
-            A string cache key.
+            List of constructs found in the file
+
+        Used in:
+        - src/uzpy/pipeline.py
         """
         file_hash = self._get_file_hash(file_path)
         # Using a tuple for the key components before joining
@@ -85,7 +95,43 @@ class CachedParser:
         )
         return ":".join(key_parts)
 
-    def parse_file(self, file_path: Path) -> list[Construct]:
+        # Call underlying parser
+        try:
+            constructs = self.parser.parse_file(file_path)
+            # Create cacheable versions without tree-sitter Node objects
+            cacheable_constructs = []
+            for construct in constructs:
+                # Create construct without the node field (which can't be pickled)
+                cacheable_construct = Construct(
+                    name=construct.name,
+                    type=construct.type,
+                    file_path=construct.file_path,
+                    line_number=construct.line_number,
+                    docstring=construct.docstring,
+                    full_name=construct.full_name,
+                    node=None,  # Don't cache the unpickleable Node object
+                )
+                cacheable_constructs.append(cacheable_construct)
+            
+            # Cache the cacheable results
+            self.cache[cache_key] = cacheable_constructs
+            return constructs  # Return original constructs with nodes
+        except Exception as e:
+            logger.error(f"Parsing failed for {file_path}: {e}")
+            # Don't cache errors
+            raise
+
+    def clear_cache(self):
+        """Clear all cached parse results.
+
+"""
+        # Clear only parse-related cache entries
+        keys_to_delete = [k for k in self.cache if k.startswith("parse:")]
+        for key in keys_to_delete:
+            del self.cache[key]
+        logger.info(f"Parser cache cleared ({len(keys_to_delete)} entries)")
+
+    def get_cache_stats(self) -> dict[str, Any]:
         """
         Parse a file, using the cache if possible.
 
@@ -93,7 +139,8 @@ class CachedParser:
             file_path: The path to the file to parse.
 
         Returns:
-            A list of Construct objects.
+            Dictionary with cache statistics
+
         """
         cache_key = self._get_parse_cache_key(file_path)
 

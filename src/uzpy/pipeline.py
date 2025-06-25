@@ -12,8 +12,8 @@ from typing import Any  # Optional removed
 
 from loguru import logger
 
-from uzpy.analyzer import HybridAnalyzer
-from uzpy.discovery import discover_files
+from uzpy.analyzer import CachedAnalyzer, ModernHybridAnalyzer, ParallelAnalyzer
+from uzpy.discovery import FileDiscovery, discover_files
 from uzpy.modifier import LibCSTModifier
 
 # Import base implementations for default fallback
@@ -26,8 +26,6 @@ def run_analysis_and_modification(
     ref_path: Path,
     exclude_patterns: list[str] | None,
     dry_run: bool,
-    parser_instance: Any | None = None,
-    analyzer_instance: Any | None = None,
 ) -> dict[Construct, list[Reference]]:
     """
     Orchestrates the full uzpy pipeline: discovery, parsing, analysis,
@@ -44,7 +42,16 @@ def run_analysis_and_modification(
                            If None, a default HybridAnalyzer is used.
 
     Returns:
-        Dictionary mapping constructs to their usage references.
+        Dictionary mapping constructs to their usage references
+
+    Used in:
+    - cli.py
+    - pipeline.py
+    - src/uzpy/cli.py
+    - src/uzpy/cli_modern.py
+    - src/uzpy/watcher.py
+    - tests/test_cli.py
+    - uzpy/cli.py
     """
     # Step 1: Discover files
     logger.info("Discovering files...")
@@ -89,34 +96,27 @@ def run_analysis_and_modification(
     logger.info(f"Successfully parsed {len(all_constructs)} total constructs from {len(edit_files)} files.")
 
     # Step 3: Analyze usages
-    logger.info("Finding references for constructs...")
+    logger.info("Finding references...")
+    try:
+        # Use modern analyzer stack
+        base_analyzer = ModernHybridAnalyzer(ref_path, exclude_patterns)
+        cached_analyzer = CachedAnalyzer(base_analyzer)
+        analyzer = ParallelAnalyzer(cached_analyzer)
+        logger.debug("Initialized modern parallel cached analyzer")
+    except Exception as e:
+        logger.error(f"Failed to initialize analyzer: {e}")
+        raise
 
-    # Use provided analyzer instance or default to HybridAnalyzer
-    # The project_path for HybridAnalyzer should ideally be the root of the reference codebase.
-    # ref_path could be a file or directory. If it's a file, its parent is a good candidate for project_path.
-    # If it's a directory, that directory itself is the project_path.
-    default_analyzer_project_path = ref_path.parent if ref_path.is_file() else ref_path
-    analyzer = (
-        analyzer_instance
-        if analyzer_instance
-        else HybridAnalyzer(project_path=default_analyzer_project_path, exclude_patterns=exclude_patterns)
-    )
-    logger.debug(f"Using analyzer: {type(analyzer).__name__}")
+    # Get all reference files for analysis
+    file_discovery = FileDiscovery(exclude_patterns)
+    ref_files = list(file_discovery.find_python_files(ref_path))
 
-    # The find_usages_batch / analyze_batch method should exist on the analyzer.
-    # The plan was to name it analyze_batch.
-    if not hasattr(analyzer, "analyze_batch") or not callable(analyzer.analyze_batch):
-        logger.error(
-            f"Analyzer {type(analyzer).__name__} does not have a callable 'analyze_batch' method. Cannot proceed with analysis."
-        )
-        # Fallback or error: For now, returning empty.
-        # A more robust solution might try to call find_usages individually if analyze_batch is missing.
-        return {c: [] for c in all_constructs}
+    # Use parallel batch processing for better performance
+    def progress_callback(completed, total):
+        """    """
+        logger.info(f"Progress: {completed}/{total} constructs analyzed")
 
-    # The `ref_files_paths` from discovery are what we search within.
-    # The `analyzer` itself might have its own project context (e.g., for Pyright or Rope).
-    logger.info(f"Analyzing {len(all_constructs)} constructs across {len(ref_files_paths)} reference files...")
-    usage_results = analyzer.analyze_batch(all_constructs, ref_files_paths)
+    usage_results = analyzer.find_usages_batch(all_constructs, ref_files, progress_callback=progress_callback)
 
     # Summary of analysis results
     constructs_with_refs = sum(1 for refs in usage_results.values() if refs)

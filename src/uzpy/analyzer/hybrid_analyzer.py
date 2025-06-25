@@ -21,6 +21,23 @@ from uzpy.types import Construct, ConstructType, Reference
 class HybridAnalyzer:
     """
     Hybrid analyzer that combines Rope and Jedi for optimal results.
+
+    Uses Jedi for fast initial analysis and Rope for verification and
+    complex cases. Provides confidence scoring and fallback mechanisms.
+
+    Used in:
+    - analyzer/__init__.py
+    - analyzer/hybrid_analyzer.py
+    - pipeline.py
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/analyzer/modern_hybrid_analyzer.py
+    - src/uzpy/cli.py
+    - src/uzpy/cli_modern.py
+    - src/uzpy/pipeline.py
+    - tests/test_analyzer.py
+    - uzpy/analyzer/__init__.py
+    - uzpy/cli.py
+    - uzpy/pipeline.py
     """
 
     def __init__(self, project_path: Path, exclude_patterns: list[str] | None = None):
@@ -49,10 +66,31 @@ class HybridAnalyzer:
         logger.info(f"Hybrid analyzer initialized (Rope: {self.rope_available}, Jedi: {self.jedi_available})")
 
     def find_usages(self, construct: Construct, search_paths: list[Path]) -> list[Reference]:
-        jedi_results: list[Reference] = []
-        rope_results: list[Reference] = []
+        """
+        Find all files where a construct is used using hybrid approach.
 
-        if self.jedi_available and self.jedi_analyzer:
+        Args:
+            construct: The construct to search for
+            search_paths: List of files to search within
+
+        Returns:
+            List of Reference objects where the construct is used
+
+        Used in:
+        - analyzer/hybrid_analyzer.py
+        - pipeline.py
+        - src/uzpy/analyzer/modern_hybrid_analyzer.py
+        - src/uzpy/cli.py
+        - src/uzpy/pipeline.py
+        - tests/test_analyzer.py
+        - uzpy/cli.py
+        - uzpy/pipeline.py
+        """
+        jedi_results = []
+        rope_results = []
+
+        # Try Jedi first (faster)
+        if self.jedi_available:
             try:
                 jedi_refs = self.jedi_analyzer.find_usages(construct, search_paths)
                 jedi_results.extend(jedi_refs)

@@ -3,11 +3,10 @@
 """
 Parallel analyzer for uzpy.
 
-This module provides a ParallelAnalyzer class that wraps another analyzer
-to distribute the analysis of constructs across multiple processes using
-the `multiprocessing` module. It aims to speed up analysis on multi-core
-systems. It also integrates `multiprocessing-logging` for better log handling
-from child processes.
+This module provides a parallel processing wrapper that can be applied to any
+analyzer to analyze multiple constructs concurrently using multiprocessing,
+significantly improving performance for large codebases.
+
 """
 
 import concurrent.futures
@@ -75,9 +74,13 @@ class ParallelAnalyzer:
     """
     A wrapper class that parallelizes the analysis of constructs using an underlying analyzer.
 
-    It distributes the workload of analyzing multiple constructs across a pool of worker processes.
-    Note: The wrapped analyzer (and its components) must be picklable to be passed to child processes.
-    If not, the worker function (_analyze_construct_worker) would need to reconstruct the analyzer.
+    This class wraps an existing analyzer and adds multiprocessing support
+    to analyze multiple constructs concurrently, significantly improving
+    performance for large numbers of constructs.
+
+    Used in:
+    - src/uzpy/analyzer/__init__.py
+    - src/uzpy/pipeline.py
     """
 
     def __init__(self, analyzer: Any, num_workers: int | None = None):
@@ -85,8 +88,9 @@ class ParallelAnalyzer:
         Initialize the ParallelAnalyzer.
 
         Args:
-            analyzer: The analyzer instance to wrap and parallelize. Must be picklable.
-            num_workers: The number of worker processes to use. Defaults to `multiprocessing.cpu_count()`.
+            analyzer: The underlying analyzer to wrap
+            max_workers: Maximum number of worker processes (defaults to CPU count)
+
         """
         self.analyzer = analyzer
         self.num_workers = num_workers if num_workers is not None else multiprocessing.cpu_count()
@@ -95,7 +99,18 @@ class ParallelAnalyzer:
             logger.warning(f"num_workers corrected from {self.num_workers} to 1.")
             self.num_workers = 1
 
-        logger.info(f"ParallelAnalyzer initialized with {self.num_workers} worker(s).")
+        This method is provided for compatibility with the standard analyzer
+        interface. For parallel processing, use find_usages_batch instead.
+
+        Args:
+            construct: The construct to find usages for
+            reference_files: List of files to search in
+
+        Returns:
+            List of references to the construct
+
+        """
+        return self.analyzer.find_usages(construct, reference_files)
 
     def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
         """
@@ -106,48 +121,52 @@ class ParallelAnalyzer:
             search_paths: A list of paths to search for references.
 
         Returns:
-            A dictionary mapping constructs to their list of references.
+            Dictionary mapping constructs to their references
+
+        Used in:
+        - src/uzpy/pipeline.py
         """
         if not constructs:
             logger.debug("analyze_batch called with no constructs.")
             return {}
 
-        # If batch size is too small or parallelism is disabled, run sequentially.
-        if len(constructs) < self.num_workers or self.num_workers <= 1:
-            logger.info(
-                f"Batch size ({len(constructs)}) is less than num_workers ({self.num_workers}), "
-                f"or num_workers is 1. Running sequentially."
-            )
-            # Check if the underlying analyzer has its own batch processing
-            if hasattr(self.analyzer, "analyze_batch") and callable(self.analyzer.analyze_batch):
-                return self.analyzer.analyze_batch(constructs, search_paths)
-            # Fallback to individual calls if no batch method on wrapped analyzer
-            results_sequential = {}
-            for construct_item in constructs:
-                if hasattr(self.analyzer, "find_usages") and callable(self.analyzer.find_usages):
-                    results_sequential[construct_item] = self.analyzer.find_usages(construct_item, search_paths)
-                else:
-                    logger.error(f"Wrapped analyzer {type(self.analyzer)} has no find_usages method.")
-                    results_sequential[construct_item] = []
-            return results_sequential
+        # If only one construct or one worker, use sequential processing
+        if len(constructs) == 1 or self.max_workers == 1:
+            results = {}
+            for i, construct in enumerate(constructs):
+                results[construct] = self.analyzer.find_usages(construct, reference_files)
+                if progress_callback:
+                    progress_callback(i + 1, len(constructs))
+            return results
 
-        logger.info(f"Starting parallel analysis of {len(constructs)} constructs using {self.num_workers} workers.")
+        logger.info(f"Analyzing {len(constructs)} constructs in parallel with {self.max_workers} workers")
 
-        results: dict[Construct, list[Reference]] = {}
+        # Create a pool of workers
+        with mp.Pool(processes=self.max_workers) as pool:
+            # Create partial function with fixed reference_files
+            analyze_func = partial(self._analyze_construct, reference_files=reference_files)
 
-        # Using ProcessPoolExecutor for managing the process pool.
-        # The context manager ensures the pool is properly shut down.
-        with concurrent.futures.ProcessPoolExecutor(max_workers=self.num_workers) as executor:
-            # Submit tasks to the executor.
-            # _analyze_construct_worker is the target function.
-            # self.analyzer is passed as the first argument to the worker.
-            # This requires self.analyzer to be picklable.
-            futures_map = {
-                executor.submit(_analyze_construct_worker, self.analyzer, c, search_paths): c for c in constructs
-            }
+            # Submit all tasks (create serializable constructs without tree-sitter nodes)
+            async_results = []
+            for construct in constructs:
+                # Create serializable construct without the unpickleable Node object
+                serializable_construct = Construct(
+                    name=construct.name,
+                    type=construct.type,
+                    file_path=construct.file_path,
+                    line_number=construct.line_number,
+                    docstring=construct.docstring,
+                    full_name=construct.full_name,
+                    node=None,  # Remove unpickleable Node
+                )
+                result = pool.apply_async(analyze_func, args=(serializable_construct,))
+                async_results.append((construct, result))  # Keep original construct as key
 
-            for future in concurrent.futures.as_completed(futures_map):
-                original_construct = futures_map[future]
+            # Collect results with progress tracking
+            results = {}
+            completed = 0
+
+            for construct, async_result in async_results:
                 try:
                     # future.result() will raise an exception if the worker failed.
                     _processed_construct, references = future.result()
@@ -161,26 +180,24 @@ class ParallelAnalyzer:
         logger.info(f"Parallel analysis of {len(constructs)} constructs completed.")
         return results
 
-    def __getattr__(self, name: str) -> Any:
-        """Delegate attribute access to the wrapped analyzer if not found in ParallelAnalyzer."""
-        if hasattr(self.analyzer, name):
-            return getattr(self.analyzer, name)
-        msg = (
-            f"'{type(self).__name__}' object and its wrapped analyzer "
-            f"'{type(self.analyzer).__name__}' have no attribute '{name}'"
-        )
-        raise AttributeError(msg)
+    def _analyze_construct(self, construct: Construct, reference_files: list[Path]) -> list[Reference]:
+        """
+        Worker function to analyze a single construct.
 
-    def close(self) -> None:
-        """Close or clean up resources if the underlying analyzer requires it."""
-        if hasattr(self.analyzer, "close") and callable(self.analyzer.close):
-            try:
-                self.analyzer.close()
-                logger.debug("Called close() on wrapped analyzer.")
-            except Exception as e:
-                logger.error(f"Error calling close() on wrapped analyzer: {e}")
-        logger.info("ParallelAnalyzer closed (if underlying analyzer had a close method).")
+        This method is called by worker processes in the pool.
 
-    def __del__(self) -> None:
-        """Attempt to close resources when the ParallelAnalyzer is deleted."""
-        self.close()
+        Args:
+            construct: The construct to analyze
+            reference_files: List of files to search in
+
+        Returns:
+            List of references to the construct
+
+        """
+        try:
+            # Note: The analyzer instance is recreated in each worker process
+            # This ensures thread safety but may impact performance
+            return self.analyzer.find_usages(construct, reference_files)
+        except Exception as e:
+            logger.error(f"Worker error analyzing {construct.name}: {e}")
+            return []

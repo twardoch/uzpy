@@ -25,6 +25,7 @@ class ConstructType(Enum):
     - analyzer/rope_analyzer.py
     - parser/__init__.py
     - parser/tree_sitter_parser.py
+    - src/uzpy/analyzer/astgrep_analyzer.py
     - src/uzpy/analyzer/hybrid_analyzer.py
     - src/uzpy/analyzer/jedi_analyzer.py
     - src/uzpy/analyzer/rope_analyzer.py
@@ -70,11 +71,18 @@ class Construct:
     - parser/__init__.py
     - parser/tree_sitter_parser.py
     - pipeline.py
+    - src/uzpy/analyzer/astgrep_analyzer.py
+    - src/uzpy/analyzer/cached_analyzer.py
     - src/uzpy/analyzer/hybrid_analyzer.py
     - src/uzpy/analyzer/jedi_analyzer.py
+    - src/uzpy/analyzer/modern_hybrid_analyzer.py
+    - src/uzpy/analyzer/parallel_analyzer.py
+    - src/uzpy/analyzer/pyright_analyzer.py
     - src/uzpy/analyzer/rope_analyzer.py
+    - src/uzpy/analyzer/ruff_analyzer.py
     - src/uzpy/modifier/libcst_modifier.py
     - src/uzpy/parser/__init__.py
+    - src/uzpy/parser/cached_parser.py
     - src/uzpy/parser/tree_sitter_parser.py
     - src/uzpy/pipeline.py
     - tests/test_analyzer.py
@@ -181,9 +189,15 @@ class Reference:
     - modifier/libcst_modifier.py
     - parser/__init__.py
     - pipeline.py
+    - src/uzpy/analyzer/astgrep_analyzer.py
+    - src/uzpy/analyzer/cached_analyzer.py
     - src/uzpy/analyzer/hybrid_analyzer.py
     - src/uzpy/analyzer/jedi_analyzer.py
+    - src/uzpy/analyzer/modern_hybrid_analyzer.py
+    - src/uzpy/analyzer/parallel_analyzer.py
+    - src/uzpy/analyzer/pyright_analyzer.py
     - src/uzpy/analyzer/rope_analyzer.py
+    - src/uzpy/analyzer/ruff_analyzer.py
     - src/uzpy/modifier/libcst_modifier.py
     - src/uzpy/parser/__init__.py
     - src/uzpy/pipeline.py
