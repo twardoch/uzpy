@@ -10,7 +10,7 @@ the application.
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING  # Optional removed
 
 if TYPE_CHECKING:
     from tree_sitter import Node
@@ -95,7 +95,7 @@ class Construct:
     line_number: int
     docstring: str | None
     full_name: str
-    node: "Optional[Node]" = None  # Keep reference to tree-sitter node
+    node: "Node | None" = None  # Keep reference to tree-sitter node
 
     def __post_init__(self):
         """Clean up docstring formatting after initialization.

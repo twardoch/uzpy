@@ -14,15 +14,17 @@ Used in:
 - cli.py
 """
 
+import os  # Moved from cli()
 import sys
 from pathlib import Path
-from typing import Optional, Union
 
 import fire
 from loguru import logger
 
 from uzpy.modifier import LibCSTCleaner
 from uzpy.pipeline import run_analysis_and_modification
+from uzpy.discovery import FileDiscovery  # Moved from clean()
+from uzpy.cli_modern import app as modern_cli_app  # Renamed to avoid conflict, moved from cli()
 
 
 class UzpyCLI:
@@ -152,8 +154,7 @@ class UzpyCLI:
 
         # Discover files to clean
         try:
-            from uzpy.discovery import FileDiscovery
-
+            # FileDiscovery is now imported at the top
             exclude_list = self.xclude_patterns
             file_discovery = FileDiscovery(exclude_list)
             files_to_clean = list(file_discovery.find_python_files(edit_path))
@@ -200,13 +201,11 @@ def cli() -> None:
     - src/uzpy/__main__.py
     - uzpy/__main__.py
     """
-    import os
+    # os and modern_cli_app are now imported at the top
 
     # Check if modern CLI is requested via environment variable
     if os.environ.get("UZPY_MODERN_CLI", "").lower() in ("1", "true", "yes"):
-        from uzpy.cli_modern import cli as modern_cli
-
-        modern_cli()
+        modern_cli_app()  # Call the imported Typer app
     else:
         # Use traditional Fire CLI for backwards compatibility
         fire.Fire(UzpyCLI)

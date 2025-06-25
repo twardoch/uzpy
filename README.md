@@ -10,11 +10,21 @@
 
 ## ✨ Features
 
-- **🔍 Fast Parsing**: Uses Tree-sitter for efficient, error-resilient Python parsing
-- **🎯 Hybrid Analysis**: Combines Rope and Jedi for comprehensive usage detection with fallback strategies
-- **📝 Safe Modifications**: Preserves all code formatting using LibCST with lossless editing
-- **🛡️ Error Recovery**: Graceful handling of syntax errors, analysis failures, and edge cases
-- **🧹 Cleanup Support**: Clean command to remove all "Used in:" sections
+- **🔍 Fast Parsing**: Uses Tree-sitter for efficient, error-resilient Python parsing.
+- **🎯 Flexible Analysis Strategies**:
+    - **Traditional Hybrid Analysis**: Combines Rope and Jedi.
+    - **Modern Hybrid Analysis**: Orchestrates Ruff, ast-grep, and Pyright for a blend of speed and precision (available via `uzpy-modern` CLI).
+- **🚀 Performance Enhancements**:
+    - **Caching Layer**: Utilizes `diskcache` for both parser and analyzer results to speed up subsequent runs.
+    - **Parallel Processing**: Leverages multiprocessing to analyze constructs concurrently.
+- **📝 Safe Modifications**: Preserves all code formatting using LibCST with lossless editing.
+- **🛡️ Error Recovery**: Graceful handling of syntax errors, analysis failures, and edge cases.
+- **🧹 Cleanup Support**: `clean` command to remove all "Used in:" sections.
+- **🔧 Modern CLI (`uzpy-modern`)**:
+    - Powered by Typer and Rich for a better user experience.
+    - Configuration via `.uzpy.env` files or environment variables (using Pydantic-settings).
+    - Commands for cache management (`cache clear`, `cache stats`).
+    - Experimental file watching mode (`watch`) for automatic re-analysis.
 
 ## 🚀 Installation
 
@@ -28,6 +38,8 @@ pip install -e .
 ```
 
 ## 📖 Quick Start
+
+### Using the Classic CLI (`uzpy`)
 
 ```bash
 # Analyze and update docstrings in current directory
@@ -43,9 +55,46 @@ python -m uzpy test --edit src/myproject/ --verbose
 python -m uzpy clean --edit src/myproject/
 ```
 
+### Using the Modern CLI (`uzpy-modern`)
+
+The modern CLI offers more features and configuration options.
+
+```bash
+# Install with modern CLI extras if not already done
+# uv pip install -e ".[all]" # Or ensure Typer, Pydantic-settings, etc. are installed
+
+# Basic run (uses settings from .uzpy.env or defaults)
+uzpy-modern run
+
+# Specify edit path and run in dry-run mode
+uzpy-modern run --edit src/myproject/ --dry-run
+
+# Clean docstrings
+uzpy-modern clean --edit src/myproject/
+
+# Manage cache
+uzpy-modern cache clear
+uzpy-modern cache stats
+
+# Watch for file changes (experimental)
+uzpy-modern watch --path src/myproject/
+```
+See `uzpy-modern --help` for all commands and options. You can configure `uzpy-modern` by creating a `.uzpy.env` file in your project root or by using environment variables prefixed with `UZPY_`.
+
+Example `.uzpy.env` file:
+```env
+UZPY_EDIT_PATH=./src
+UZPY_EXCLUDE_PATTERNS=tests,migrations/*
+UZPY_ANALYZER_TYPE=modern_hybrid
+UZPY_USE_CACHE=true
+UZPY_USE_PARALLEL=true
+UZPY_VERBOSE=false
+UZPY_LOG_LEVEL=INFO
+```
+
 ## 💡 Usage Examples
 
-### Basic Analysis
+### Classic CLI (`uzpy`) Basic Analysis
 
 ```bash
 # Analyze current directory
@@ -120,7 +169,9 @@ def calculate_total(items):
     return sum(item.price for item in items)
 ```
 
-## 🔧 CLI Reference
+## 🔧 CLI Reference (`uzpy` - Classic CLI)
+
+The classic CLI (`python -m uzpy` or `uzpy`) is based on Python Fire.
 
 ### Commands
 
@@ -193,15 +244,50 @@ fd -e py -x autoflake {}; fd -e py -x pyupgrade --py312-plus {}; fd -e py -x ruf
 
 ### Architecture Overview
 
-uzpy is designed with clear separation of concerns:
+`uzpy` uses a modular architecture:
 
-- **`src/uzpy/cli.py`** - Fire-based command-line interface
-- **`src/uzpy/discovery.py`** - File discovery with gitignore support  
-- **`src/uzpy/parser/tree_sitter_parser.py`** - Tree-sitter based Python parsing
-- **`src/uzpy/analyzer/hybrid_analyzer.py`** - Hybrid reference analysis combining Rope and Jedi
-- **`src/uzpy/modifier/libcst_modifier.py`** - LibCST-based safe code modification
-- **`src/uzpy/pipeline.py`** - Main orchestration pipeline
-- **`src/uzpy/types.py`** - Core data structures
+- **CLI Layer**:
+    - `src/uzpy/cli.py`: Classic CLI (Python Fire).
+    - `src/uzpy/cli_modern.py`: Modern CLI (`uzpy-modern`, Typer, Pydantic-settings).
+- **Core Pipeline (`src/uzpy/pipeline.py`)**: Orchestrates the discovery, parsing, analysis, and modification steps. Accepts configured parser and analyzer instances.
+- **File Discovery (`src/uzpy/discovery.py`)**: Finds Python files, respects `.gitignore` and custom exclusions.
+- **Parsing Layer**:
+    - `src/uzpy/parser/tree_sitter_parser.py`: Primary parser using Tree-sitter.
+    - `src/uzpy/parser/cached_parser.py`: Wraps parsers with a caching layer.
+- **Analysis Layer (`src/uzpy/analyzer/`)**:
+    - **Traditional**: `JediAnalyzer`, `RopeAnalyzer`, `HybridAnalyzer`.
+    - **Modern**: `RuffAnalyzer`, `AstGrepAnalyzer`, `PyrightAnalyzer`, `ModernHybridAnalyzer`.
+    - **Enhancements**: `CachedAnalyzer` (for caching analysis results), `ParallelAnalyzer` (for parallel execution).
+- **Modification Layer (`src/uzpy/modifier/libcst_modifier.py`)**: Safely updates docstrings using LibCST.
+- **Type Definitions (`src/uzpy/types.py`)**: Core data structures like `Construct` and `Reference`.
+- **Watcher (`src/uzpy/watcher.py`)**: File system monitoring for `uzpy-modern watch` mode.
+
+
+### Modern CLI (`uzpy-modern`) Reference
+
+The `uzpy-modern` CLI provides enhanced features and configuration. Access it via the `uzpy-modern` command after installation.
+
+**Configuration:**
+- Create a `.uzpy.env` file in your project root (see example in "Quick Start").
+- Or, use environment variables prefixed with `UZPY_` (e.g., `UZPY_VERBOSE=true`).
+- Command-line options override environment/file settings.
+
+**Key Commands (`uzpy-modern --help` for full details):**
+- `run`: Analyzes and updates docstrings.
+  - Options: `--edit`, `--ref`, `--dry-run`.
+- `clean`: Removes "Used in:" sections from docstrings.
+  - Options: `--edit`, `--dry-run`.
+- `cache <action>`: Manages caches.
+  - `clear`: Clears parser and analyzer caches.
+  - `stats`: Shows cache statistics.
+- `watch`: Monitors files for changes and re-runs analysis (experimental).
+  - Options: `--path`.
+
+**Global Options for `uzpy-modern`:**
+- `--config / -c FILE_PATH`: Path to a custom `.env` configuration file.
+- `--verbose / -v`: Enable verbose DEBUG logging.
+- `--log-level LEVEL`: Set logging level (DEBUG, INFO, etc.).
+
 
 ## 📋 Requirements
 
@@ -214,30 +300,35 @@ uzpy is designed with clear separation of concerns:
 
 Core dependencies are automatically installed:
 
-- **tree-sitter** & **tree-sitter-python** - Fast AST parsing
-- **rope** - Accurate code analysis
-- **jedi** - Fast symbol resolution
-- **libcst** - Safe code modification
-- **fire** - CLI generation
-- **loguru** - Logging
-- **pathspec** - Gitignore pattern matching
-- **rich** - Terminal output
+- **tree-sitter** & **tree-sitter-python**: Core parsing.
+- **rope**, **jedi**: Traditional analysis.
+- **libcst**: Code modification.
+- **fire**: Classic CLI.
+- **loguru**: Logging.
+- **pathspec**: Files discovery.
+- **rich**: Used by Typer for enhanced CLI output.
+- **New in `uzpy-modern` and core enhancements**:
+    - `typer`, `pydantic-settings`: Modern CLI and configuration.
+    - `diskcache`: Caching for performance.
+    - `multiprocessing-logging`: For parallel analysis logging.
+    - `ast-grep-py`: Structural code search for `AstGrepAnalyzer`.
+    - `watchdog`: File monitoring for `watch` mode.
+- **Note**: `ruff` and `pyright` are utilized as command-line tools and are expected to be in your environment for full `ModernHybridAnalyzer` functionality.
 
 ## ⚠️ Current Limitations
 
-1. **Basic CLI**: Simple Fire-based interface (no fancy Rich tables)
-2. **No Configuration Files**: No `.uzpy.toml` support yet
-3. **No Performance Metrics**: No benchmarking data available
-4. **Limited Error Context**: Some analysis failures may not provide detailed context
-5. **No Watch Mode**: No real-time file monitoring
+1. **Classic CLI (`uzpy`)**: Remains a simple Fire-based interface. For advanced features and configuration, use `uzpy-modern`.
+2. **Performance Metrics**: No formal benchmarking data published yet, though significant improvements are expected with caching/parallelism.
+3. **Modern Analyzer Precision**: The new analyzers (`RuffAnalyzer`, `PyrightAnalyzer`) rely on CLI tool output, which might have limitations for precise reference finding compared to deep programmatic integration (e.g., Pyright via LSP). `AstGrepAnalyzer` depends on the quality of its patterns.
+4. **Watch Mode**: The `watch` mode in `uzpy-modern` is experimental and currently re-analyzes the full configured scope on change.
 
 ## 🚧 Future Enhancements
 
-- **Enhanced CLI**: Rich-based terminal output with progress bars and tables
-- **Configuration Support**: `.uzpy.toml` configuration files
-- **Performance Optimization**: Benchmarking and optimization for large codebases
-- **Watch Mode**: Real-time file monitoring and updates
-- **Plugin System**: Extensible architecture for custom analyzers
+- **Refined Incremental Analysis**: Improve `watch` mode to only re-analyze affected parts of the codebase.
+- **LSP Integration**: Deeper integration with Pyright or other language servers for more precise analysis.
+- **Advanced Analytics**: Implement planned `duckdb`/`sqlalchemy` based usage analytics.
+- **Plugin System**: Develop a plugin system for custom analyzers or docstring formatters.
+- **Comprehensive Testing**: Expand test suite to cover all new analyzers and features in depth.
 
 ## 🤝 Contributing
 

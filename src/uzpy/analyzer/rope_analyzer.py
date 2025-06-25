@@ -12,7 +12,6 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError
@@ -259,7 +258,7 @@ class RopeAnalyzer:
         except Exception:
             return False
 
-    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Path]]:
+    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[str, list[Reference]]:
         """
         Analyze multiple constructs in batch for efficiency.
 
