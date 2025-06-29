@@ -1,356 +1,318 @@
-# uzpy
+# uzpy: Python Code Usage Tracker & Docstring Updater
 
-**A Python tool that automatically analyzes code usage patterns and updates docstrings with "Used in:" documentation.**
+**uzpy** (`ʌzpi`) is a powerful command-line tool and Python library that analyzes your Python codebase to discover where functions, classes, methods, and modules are used. It then automatically updates their docstrings with a clear "Used in:" section, providing valuable cross-references directly within your code.
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Beta](https://img.shields.io/badge/status-beta-orange.svg)]()
+## Part 1: User Guide
 
-`uzpy` scans Python codebases to find where each function, class, and method is used, then automatically updates their docstrings with comprehensive usage information. It helps developers understand code dependencies and maintain better documentation.
+### What does `uzpy` do?
 
-## ✨ Features
+At its core, `uzpy` helps you understand and document the interconnectedness of your Python project. It:
 
-- **🔍 Fast Parsing**: Uses Tree-sitter for efficient, error-resilient Python parsing.
-- **🎯 Flexible Analysis Strategies**:
-    - **Traditional Hybrid Analysis**: Combines Rope and Jedi.
-    - **Modern Hybrid Analysis**: Orchestrates Ruff, ast-grep, and Pyright for a blend of speed and precision (available via `uzpy-modern` CLI).
-- **🚀 Performance Enhancements**:
-    - **Caching Layer**: Utilizes `diskcache` for both parser and analyzer results to speed up subsequent runs.
-    - **Parallel Processing**: Leverages multiprocessing to analyze constructs concurrently.
-- **📝 Safe Modifications**: Preserves all code formatting using LibCST with lossless editing.
-- **🛡️ Error Recovery**: Graceful handling of syntax errors, analysis failures, and edge cases.
-- **🧹 Cleanup Support**: `clean` command to remove all "Used in:" sections.
-- **🔧 Modern CLI (`uzpy-modern`)**:
-    - Powered by Typer and Rich for a better user experience.
-    - Configuration via `.uzpy.env` files or environment variables (using Pydantic-settings).
-    - Commands for cache management (`cache clear`, `cache stats`).
-    - Experimental file watching mode (`watch`) for automatic re-analysis.
+1.  **Discovers Code Constructs:** Scans your Python files to identify definitions of functions, classes, methods, and modules.
+2.  **Finds Usages:** Determines where each of these defined constructs is referenced or called throughout your specified codebase.
+3.  **Updates Docstrings:** Modifies the docstrings of the defined constructs to include a list of file paths where they are used.
+4.  **Cleans Docstrings:** Can also remove these automatically generated "Used in:" sections if needed.
+5.  **Offers Flexibility:** Provides various analysis engines, caching, and parallel processing for efficiency.
 
-## 🚀 Installation
+**Example of a modified docstring:**
 
-```bash
-# Install with uv (recommended)
-uv venv && source .venv/bin/activate
-uv pip install -e .
-
-# Or with pip
-pip install -e .
-```
-
-## 📖 Quick Start
-
-### Using the Classic CLI (`uzpy`)
-
-```bash
-# Analyze and update docstrings in current directory
-python -m uzpy run
-
-# Analyze specific path
-python -m uzpy run --edit src/myproject/
-
-# Preview changes without modification (dry-run mode)
-python -m uzpy test --edit src/myproject/ --verbose
-
-# Remove all "Used in:" sections
-python -m uzpy clean --edit src/myproject/
-```
-
-### Using the Modern CLI (`uzpy-modern`)
-
-The modern CLI offers more features and configuration options.
-
-```bash
-# Install with modern CLI extras if not already done
-# uv pip install -e ".[all]" # Or ensure Typer, Pydantic-settings, etc. are installed
-
-# Basic run (uses settings from .uzpy.env or defaults)
-uzpy-modern run
-
-# Specify edit path and run in dry-run mode
-uzpy-modern run --edit src/myproject/ --dry-run
-
-# Clean docstrings
-uzpy-modern clean --edit src/myproject/
-
-# Manage cache
-uzpy-modern cache clear
-uzpy-modern cache stats
-
-# Watch for file changes (experimental)
-uzpy-modern watch --path src/myproject/
-```
-See `uzpy-modern --help` for all commands and options. You can configure `uzpy-modern` by creating a `.uzpy.env` file in your project root or by using environment variables prefixed with `UZPY_`.
-
-Example `.uzpy.env` file:
-```env
-UZPY_EDIT_PATH=./src
-UZPY_EXCLUDE_PATTERNS=tests,migrations/*
-UZPY_ANALYZER_TYPE=modern_hybrid
-UZPY_USE_CACHE=true
-UZPY_USE_PARALLEL=true
-UZPY_VERBOSE=false
-UZPY_LOG_LEVEL=INFO
-```
-
-## 💡 Usage Examples
-
-### Classic CLI (`uzpy`) Basic Analysis
-
-```bash
-# Analyze current directory
-python -m uzpy run
-
-# Analyze specific path
-python -m uzpy run --edit src/myproject/
-
-# Analyze with custom exclusions
-python -m uzpy run --edit src/ --xclude_patterns tests,migrations
-```
-
-### Preview Mode
-
-```bash
-# Dry run to see what would change
-python -m uzpy test --edit src/myproject/ --verbose
-
-# Test specific file
-python -m uzpy test --edit src/utils.py --verbose
-```
-
-### Cleanup
-
-```bash
-# Remove all "Used in:" sections
-python -m uzpy clean --edit src/
-
-# Clean with verbose output
-python -m uzpy clean --edit src/ --verbose
-```
-
-## 🔧 How It Works
-
-uzpy uses a four-phase pipeline:
-
-1. **🔍 Discovery Phase**: Finds Python files using pathspec while respecting gitignore patterns
-2. **📊 Parsing Phase**: Uses Tree-sitter to extract functions, classes, methods, and modules with their docstrings
-3. **🔗 Analysis Phase**: Employs hybrid Rope+Jedi analysis with intelligent strategy selection
-4. **📝 Modification Phase**: Uses LibCST to safely update docstrings while preserving all formatting
-
-### Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   File Discovery │───▶│  Tree-sitter     │───▶│  Hybrid Analyzer│───▶│  LibCST Modifier│
-│   (pathspec +    │    │  Parser          │    │  (Rope + Jedi)  │    │  (docstring     │
-│   gitignore)     │    │  (AST extraction)│    │  (usage finding)│    │   updates)      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-### What Gets Updated
-
-uzpy automatically adds "Used in:" sections to docstrings:
-
-**Before:**
 ```python
-def calculate_total(items):
-    """Calculate the total price of items."""
-    return sum(item.price for item in items)
-```
-
-**After:**
-```python
-def calculate_total(items):
-    """Calculate the total price of items.
+def my_utility_function(data):
+    """
+    This function processes data in a specific way.
 
     Used in:
-    - src/billing/invoice.py
-    - tests/test_calculations.py
+    - src/feature_a/core.py
+    - tests/unit/test_processing.py
     """
-    return sum(item.price for item in items)
+    # ... implementation ...
+    pass
 ```
 
-## 🔧 CLI Reference (`uzpy` - Classic CLI)
+### Who is `uzpy` for?
 
-The classic CLI (`python -m uzpy` or `uzpy`) is based on Python Fire.
+`uzpy` is for Python developers who want to:
 
-### Commands
+*   **Improve Code Navigation:** Quickly see where a piece of code is utilized without manually searching or relying solely on IDE features.
+*   **Enhance Code Comprehension:** Understand the impact of changes to a function or class by seeing its usage contexts.
+*   **Maintain Up-to-Date Documentation:** Keep docstrings relevant by automatically linking definitions to their usage sites.
+*   **Streamline Code Reviews:** Provide reviewers with immediate context on where and how a component is used.
+*   **Aid Refactoring:** Identify all call sites of a function or usages of a class before making modifications.
 
-| Command | Description |
-|---------|-------------|
-| `run` | Analyze and update docstrings (default behavior) |
-| `test` | Run analysis in dry-run mode without modifying files |
-| `clean` | Remove all "Used in:" sections from docstrings |
+### Why is `uzpy` useful?
 
-### Constructor Options
+*   **Automated Cross-Referencing:** Saves manual effort in tracking and documenting code usage.
+*   **Living Documentation:** Docstrings evolve with your codebase, reflecting actual usage.
+*   **Reduced Cognitive Load:** Makes it easier to navigate and understand complex projects.
+*   **IDE Agnostic:** Provides valuable insights regardless of your development environment, though it complements IDE features well.
+*   **Configurable and Performant:** Offers various analysis backends, caching, and parallel execution to suit different project sizes and needs.
 
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `edit` | str/Path | Path to analyze and modify | current directory |
-| `ref` | str/Path | Reference path for usage search | same as edit |
-| `verbose` | bool | Enable detailed logging | False |
-| `xclude_patterns` | str/list | Exclude patterns (comma-separated) | None |
-| `methods_include` | bool | Include method definitions | True |
-| `classes_include` | bool | Include class definitions | True |
-| `functions_include` | bool | Include function definitions | True |
+### Installation
 
-### Examples
+`uzpy` requires Python 3.10 or higher. You can install it using `uv pip` (or `pip`):
 
 ```bash
-# Basic usage
-python -m uzpy run --edit src/
-
-# With custom options
-python -m uzpy run --edit src/ --ref . --verbose --xclude_patterns tests,migrations
-
-# Dry run mode
-python -m uzpy test --edit src/ --verbose
-
-# Clean docstrings
-python -m uzpy clean --edit src/
+uv pip install uzpy
 ```
 
-## 🛠️ Development
+This installs the core package. `uzpy` also has optional dependencies for development, testing, and documentation building. You can install them as needed:
 
-### Setup Development Environment
+*   **For development (linters, formatters, etc.):**
+    ```bash
+    uv pip install uzpy[dev]
+    ```
+*   **For running tests:**
+    ```bash
+    uv pip install uzpy[test]
+    ```
+*   **For building documentation:**
+    ```bash
+    uv pip install uzpy[docs]
+    ```
+*   **To install all optional dependencies:**
+    ```bash
+    uv pip install uzpy[all]
+    ```
+
+For developing `uzpy` itself, clone the repository and install it in editable mode:
 
 ```bash
-# Clone and setup
 git clone https://github.com/twardoch/uzpy.git
 cd uzpy
-
-# Setup with uv (recommended)
-uv venv && source .venv/bin/activate
 uv pip install -e .[dev,test]
-
-# Or with pip
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -e .[dev,test]
 ```
 
-### Development Workflow
+### How to Use `uzpy`
 
-```bash
-# Run tests
-python -m pytest
+`uzpy` can be used both as a command-line tool and programmatically within your Python scripts.
 
-# Lint and format
-ruff check --fix
-ruff format
+#### Command-Line Interface (CLI)
 
-# Full development pipeline
-fd -e py -x autoflake {}; fd -e py -x pyupgrade --py312-plus {}; fd -e py -x ruff check --output-format=github --fix --unsafe-fixes {}; fd -e py -x ruff format --respect-gitignore --target-version py312 {}; python -m pytest;
-```
+The primary CLI is accessed via the `uzpy` command (which is an alias for `uzpy-modern`).
 
-### Architecture Overview
+**Core Commands:**
 
-`uzpy` uses a modular architecture:
+1.  **`run`**: Analyze the codebase and update docstrings.
+    *   `--edit <path>` or `-e <path>`: Path to the file or directory whose docstrings will be modified.
+    *   `--ref <path>` or `-r <path>`: Path to the file or directory to search for usages. Often this is your entire project root (e.g., `.`).
+    *   `--dry-run`: Show what changes would be made without actually modifying files.
+    *   `--config <file_path>` or `-c <file_path>`: Path to a custom `.uzpy.env` configuration file.
+    *   `--verbose` or `-v`: Enable verbose DEBUG logging.
+    *   `--log-level <LEVEL>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
 
-- **CLI Layer**:
-    - `src/uzpy/cli.py`: Classic CLI (Python Fire).
-    - `src/uzpy/cli_modern.py`: Modern CLI (`uzpy-modern`, Typer, Pydantic-settings).
-- **Core Pipeline (`src/uzpy/pipeline.py`)**: Orchestrates the discovery, parsing, analysis, and modification steps. Accepts configured parser and analyzer instances.
-- **File Discovery (`src/uzpy/discovery.py`)**: Finds Python files, respects `.gitignore` and custom exclusions.
-- **Parsing Layer**:
-    - `src/uzpy/parser/tree_sitter_parser.py`: Primary parser using Tree-sitter.
-    - `src/uzpy/parser/cached_parser.py`: Wraps parsers with a caching layer.
-- **Analysis Layer (`src/uzpy/analyzer/`)**:
-    - **Traditional**: `JediAnalyzer`, `RopeAnalyzer`, `HybridAnalyzer`.
-    - **Modern**: `RuffAnalyzer`, `AstGrepAnalyzer`, `PyrightAnalyzer`, `ModernHybridAnalyzer`.
-    - **Enhancements**: `CachedAnalyzer` (for caching analysis results), `ParallelAnalyzer` (for parallel execution).
-- **Modification Layer (`src/uzpy/modifier/libcst_modifier.py`)**: Safely updates docstrings using LibCST.
-- **Type Definitions (`src/uzpy/types.py`)**: Core data structures like `Construct` and `Reference`.
-- **Watcher (`src/uzpy/watcher.py`)**: File system monitoring for `uzpy-modern watch` mode.
+    **Example:**
+    ```bash
+    # Analyze the 'src/' directory and update its docstrings,
+    # searching for usages within the entire current project.
+    uzpy run --edit src/ --ref .
 
+    # Perform a dry run on a single file
+    uzpy run --edit my_module.py --ref . --dry-run
+    ```
 
-### Modern CLI (`uzpy-modern`) Reference
+2.  **`clean`**: Remove "Used in:" sections from docstrings.
+    *   `--edit <path>` or `-e <path>`: Path to the file or directory to clean.
+    *   `--dry-run`: Show what files would be cleaned without modifying them.
 
-The `uzpy-modern` CLI provides enhanced features and configuration. Access it via the `uzpy-modern` command after installation.
+    **Example:**
+    ```bash
+    uzpy clean --edit src/
+    ```
+
+3.  **`cache`**: Manage the analysis cache.
+    *   `uzpy cache clear`: Clears the parser and analyzer caches.
+    *   `uzpy cache stats`: Shows statistics about the cache (item count, disk usage).
+
+4.  **`watch`**: (Experimental) Monitor files for changes and re-run analysis automatically.
+    *   `--path <path>` or `-p <path>`: Directory/file to watch (overrides configured `edit_path`).
+
+    **Example:**
+    ```bash
+    uzpy watch --path src/
+    ```
 
 **Configuration:**
-- Create a `.uzpy.env` file in your project root (see example in "Quick Start").
-- Or, use environment variables prefixed with `UZPY_` (e.g., `UZPY_VERBOSE=true`).
-- Command-line options override environment/file settings.
 
-**Key Commands (`uzpy-modern --help` for full details):**
-- `run`: Analyzes and updates docstrings.
-  - Options: `--edit`, `--ref`, `--dry-run`.
-- `clean`: Removes "Used in:" sections from docstrings.
-  - Options: `--edit`, `--dry-run`.
-- `cache <action>`: Manages caches.
-  - `clear`: Clears parser and analyzer caches.
-  - `stats`: Shows cache statistics.
-- `watch`: Monitors files for changes and re-runs analysis (experimental).
-  - Options: `--path`.
+`uzpy` can be configured using a `.uzpy.env` file in the directory where you run the command, or by specifying a custom config file path with `--config`. Environment variables prefixed with `UZPY_` can also be used.
 
-**Global Options for `uzpy-modern`:**
-- `--config / -c FILE_PATH`: Path to a custom `.env` configuration file.
-- `--verbose / -v`: Enable verbose DEBUG logging.
-- `--log-level LEVEL`: Set logging level (DEBUG, INFO, etc.).
+Key configuration options (settable in `.uzpy.env` or as environment variables):
 
+*   `UZPY_EDIT_PATH`: Default path to analyze/modify.
+*   `UZPY_REF_PATH`: Default reference path for usage search.
+*   `UZPY_EXCLUDE_PATTERNS`: Comma-separated list of glob patterns to exclude (e.g., `__pycache__/*,*.tmp`).
+*   `UZPY_USE_CACHE`: `true` or `false` to enable/disable caching.
+*   `UZPY_ANALYZER_TYPE`: Choose the analysis engine (e.g., `modern_hybrid`, `hybrid`, `jedi`, `rope`).
+*   `UZPY_LOG_LEVEL`: Default logging level.
+*   `UZPY_VERBOSE`: `true` or `false` for verbose logging.
+*   ... and more for fine-tuning analyzer behavior (see `src/uzpy/cli_modern.py` `UzpySettings` for all options).
 
-## 📋 Requirements
+#### Programmatic Usage
 
-### System Requirements
+You can integrate `uzpy`'s core functionality into your own Python scripts. The main entry point for this is the `run_analysis_and_modification` function.
 
-- **Python**: 3.10 or higher
-- **Operating Systems**: Linux, macOS, Windows
+```python
+from pathlib import Path
+from uzpy.pipeline import run_analysis_and_modification
+from uzpy.types import Construct, Reference # For inspecting results
 
-### Dependencies
+# Define paths
+project_root = Path(".")
+edit_directory = project_root / "src"
+reference_directory = project_root # Search the whole project
 
-Core dependencies are automatically installed:
+# Define exclusion patterns (optional)
+exclude_patterns = ["**/__pycache__/**", "*.pyc", "build/", "dist/"]
 
-- **tree-sitter** & **tree-sitter-python**: Core parsing.
-- **rope**, **jedi**: Traditional analysis.
-- **libcst**: Code modification.
-- **fire**: Classic CLI.
-- **loguru**: Logging.
-- **pathspec**: Files discovery.
-- **rich**: Used by Typer for enhanced CLI output.
-- **New in `uzpy-modern` and core enhancements**:
-    - `typer`, `pydantic-settings`: Modern CLI and configuration.
-    - `diskcache`: Caching for performance.
-    - `multiprocessing-logging`: For parallel analysis logging.
-    - `ast-grep-py`: Structural code search for `AstGrepAnalyzer`.
-    - `watchdog`: File monitoring for `watch` mode.
-- **Note**: `ruff` and `pyright` are utilized as command-line tools and are expected to be in your environment for full `ModernHybridAnalyzer` functionality.
+# Run the analysis and modification
+# Set dry_run=True to see what would change without modifying files
+usage_results: dict[Construct, list[Reference]] = run_analysis_and_modification(
+    edit_path=edit_directory,
+    ref_path=reference_directory,
+    exclude_patterns=exclude_patterns,
+    dry_run=False # Set to True for a dry run
+)
 
-## ⚠️ Current Limitations
+# Process results (optional)
+if usage_results:
+    print(f"Analysis complete. Found usages for {len(usage_results)} constructs.")
+    for construct, references in usage_results.items():
+        if references:
+            print(f"Construct {construct.full_name} in {construct.file_path} is used in:")
+            for ref in references:
+                print(f"  - {ref.file_path} (Line: {ref.line_number})")
+else:
+    print("No constructs found or no usages identified.")
 
-1. **Classic CLI (`uzpy`)**: Remains a simple Fire-based interface. For advanced features and configuration, use `uzpy-modern`.
-2. **Performance Metrics**: No formal benchmarking data published yet, though significant improvements are expected with caching/parallelism.
-3. **Modern Analyzer Precision**: The new analyzers (`RuffAnalyzer`, `PyrightAnalyzer`) rely on CLI tool output, which might have limitations for precise reference finding compared to deep programmatic integration (e.g., Pyright via LSP). `AstGrepAnalyzer` depends on the quality of its patterns.
-4. **Watch Mode**: The `watch` mode in `uzpy-modern` is experimental and currently re-analyzes the full configured scope on change.
+```
 
-## 🚧 Future Enhancements
+You can also use individual components like parsers or analyzers directly. See the modules in `src/uzpy/parser/` and `src/uzpy/analyzer/` for more details.
 
-- **Refined Incremental Analysis**: Improve `watch` mode to only re-analyze affected parts of the codebase.
-- **LSP Integration**: Deeper integration with Pyright or other language servers for more precise analysis.
-- **Advanced Analytics**: Implement planned `duckdb`/`sqlalchemy` based usage analytics.
-- **Plugin System**: Develop a plugin system for custom analyzers or docstring formatters.
-- **Comprehensive Testing**: Expand test suite to cover all new analyzers and features in depth.
+## Part 2: Technical Details & Contribution Guide
 
-## 🤝 Contributing
+### How `uzpy` Works
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+`uzpy` follows a multi-stage process:
 
-### Development Guidelines
+1.  **File Discovery (`src/uzpy/discovery.py`):**
+    *   The `FileDiscovery` class scans the specified `edit_path` and `ref_path`.
+    *   It identifies all Python files (`.py` or files with Python shebangs).
+    *   It respects default exclude patterns (e.g., `.git`, `__pycache__`, `venv`) and user-defined exclusions. Patterns are `.gitignore` style.
 
-1. Follow the existing code style (Ruff configuration)
-2. Add tests for new functionality
-3. Update documentation as needed
-4. Ensure all tests pass before submitting
+2.  **Parsing (`src/uzpy/parser/`):**
+    *   The primary parser is `TreeSitterParser`, which uses the `tree-sitter` library for fast and robust parsing of Python code into an Abstract Syntax Tree (AST).
+    *   It extracts code constructs (modules, classes, functions, methods) along with their names, line numbers, existing docstrings, and fully qualified names. These are stored as `Construct` objects (see `src/uzpy/types.py`).
+    *   A `CachedParser` wraps the `TreeSitterParser` to cache parsing results using `diskcache`. Cache keys are based on file content and modification time to ensure freshness.
 
-## 📄 License
+3.  **Usage Analysis (`src/uzpy/analyzer/`):**
+    *   This is the most complex stage, with multiple analyzer implementations available. The goal is to find all `Reference`s to each `Construct`.
+    *   **`ModernHybridAnalyzer`**: This is often the default and recommended analyzer. It combines several modern tools in a tiered approach:
+        *   **`RuffAnalyzer`**: Uses `ruff` (a fast linter) for very basic checks. Its ability to find references is limited but can quickly identify non-usage in some cases.
+        *   **`AstGrepAnalyzer`**: Uses `ast-grep` for structural pattern matching based on predefined rules for calls and imports.
+        *   **`PyrightAnalyzer`**: Leverages `pyright` (Microsoft's static type checker). While Pyright's CLI is not primarily designed for "find references" like its LSP, `uzpy` attempts to use its analysis output. This is more accurate for type-aware reference finding.
+    *   **`HybridAnalyzer`**: A traditional hybrid approach combining:
+        *   **`JediAnalyzer`**: Uses `jedi` for fast symbol resolution and reference finding.
+        *   **`RopeAnalyzer`**: Uses `rope` for more robust, deeper static analysis, especially for complex cases.
+    *   Analyzers can be wrapped with:
+        *   **`CachedAnalyzer`**: Caches analysis results (the list of `Reference`s for a `Construct`). Cache keys depend on the construct itself and a hash of all files in the `search_paths` to ensure that changes in referenced code invalidate the cache.
+        *   **`ParallelAnalyzer`**: Uses `multiprocessing` to run analysis for multiple constructs concurrently, speeding up the process on multi-core machines.
+    *   The choice of analyzer and its configuration (e.g., short-circuit thresholds in `ModernHybridAnalyzer`) can be set via the `.uzpy.env` file or environment variables.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+4.  **Docstring Modification (`src/uzpy/modifier/libcst_modifier.py`):**
+    *   Once usages are found, `LibCSTModifier` is used to update the docstrings in the files from `edit_path`.
+    *   LibCST (Concrete Syntax Tree) is used because it preserves all formatting, comments, and whitespace in the original code.
+    *   The `DocstringModifier` (a LibCST transformer) visits relevant nodes (functions, classes, modules) in the AST.
+    *   It extracts the existing docstring (if any).
+    *   It generates a "Used in:" section, listing relative file paths of all references.
+        *   References from the same file being modified are excluded from this list.
+        *   If a "Used in:" section already exists, new references are merged with existing ones, and duplicates are avoided. Old, valid references are preserved.
+    *   The modified docstring is then written back into the CST, and the entire file is re-serialized.
+    *   `LibCSTCleaner` and `DocstringCleaner` use a similar process to remove these "Used in:" sections.
 
-## 🙏 Acknowledgments
+5.  **CLI and Orchestration (`src/uzpy/cli_modern.py`, `src/uzpy/pipeline.py`):**
+    *   `cli_modern.py` uses `Typer` to provide the command-line interface. It handles argument parsing, loads settings (from `.uzpy.env` or environment variables via Pydantic's `BaseSettings`), and sets up `loguru` for logging.
+    *   `pipeline.py`'s `run_analysis_and_modification` function orchestrates the discovery, parsing, analysis, and modification steps.
 
-- **Tree-sitter** for fast, error-resilient parsing
-- **Rope** for accurate cross-file analysis  
-- **Jedi** for fast symbol resolution
-- **LibCST** for safe code modification with formatting preservation
-- **Fire** for simple CLI generation
-- **The Python community** for excellent tooling and libraries
+### Coding and Contribution Rules
 
+We welcome contributions to `uzpy`! Please follow these guidelines:
+
+**General Principles (from `AGENT.md`/`CLAUDE.md`):**
+
+*   **Iterate Gradually:** Make small, incremental changes. Avoid major refactors in single commits.
+*   **Preserve Structure:** Maintain the existing code structure unless a change is well-justified.
+*   **Readability:** Write clear, descriptive names for variables and functions. Keep code simple and explicit (PEP 20).
+*   **Comments & Docstrings:**
+    *   Write explanatory docstrings for all public modules, classes, functions, and methods (PEP 257). Docstrings should be imperative (e.g., "Do this," not "Does this.").
+    *   Use comments to explain *why* certain complex or non-obvious code exists.
+    *   Ensure docstrings and comments are kept up-to-date with code changes.
+*   **`this_file` Record:** For Python source files within `src/uzpy/`, include a comment near the top like `# this_file: src/uzpy/module_name.py` indicating its path relative to the project root.
+*   **Error Handling:** Handle potential errors gracefully. Use `try-except` blocks where appropriate and log errors effectively.
+*   **Modularity:** Encapsulate repeated logic into concise, single-purpose functions.
+
+**Python Specifics:**
+
+*   **Formatting:**
+    *   Follow PEP 8 guidelines.
+    *   Use `ruff format` for consistent code formatting. Line length is generally 120 characters.
+    *   Use `ruff check` for linting. Configurations are in `pyproject.toml`.
+*   **Type Hints:**
+    *   Use type hints for all function signatures and variables where practical (PEP 484).
+    *   Use simple forms (e.g., `list[int]`, `dict[str, bool]`, `str | None`).
+*   **Imports:**
+    *   Organize imports according to PEP 8. `ruff` (with `isort` integration) will handle this.
+    *   Relative imports within the `src/uzpy` package are banned; use absolute imports (e.g., `from uzpy.parser import TreeSitterParser`).
+*   **Logging:**
+    *   Use `loguru` for logging. Add `logger.debug()`, `logger.info()`, etc. where appropriate.
+    *   Ensure CLI commands have options for verbosity (`-v`) and log level selection.
+*   **CLI Scripts:** For new CLI scripts (if any, though `cli_modern.py` is the main one), consider using `Typer` and `Rich` as established in the project.
+*   **Dependencies:** Use `uv pip` for managing dependencies (e.g., `uv pip install <package>`, `uv pip uninstall <package>`).
+
+**Development Workflow:**
+
+1.  **Set up Environment:**
+    *   Ensure you have Python 3.10+ and `uv` installed.
+    *   Clone the repository.
+    *   Create and activate a virtual environment:
+        ```bash
+        python -m venv .venv
+        source .venv/bin/activate # or .venv\Scripts\activate on Windows
+        ```
+    *   Install dependencies: `uv pip install -e .[dev,test]`
+    *   (Alternatively, use `hatch env create` and `hatch shell` if you prefer Hatch for environment management.)
+
+2.  **Pre-commit Hooks:**
+    *   Install pre-commit hooks to ensure code quality before committing:
+        ```bash
+        pre-commit install
+        ```
+    *   These hooks will automatically run tools like `ruff` on your changed files.
+
+3.  **Making Changes:**
+    *   Create a new branch for your feature or bugfix.
+    *   Write code following the guidelines above.
+    *   Add or update tests for your changes in the `tests/` directory.
+    *   Ensure all tests pass: `pytest` or `hatch run test:test`.
+    *   Run linters and formatters: `hatch run lint:all` or run `ruff format .` and `ruff check . --fix`.
+    *   Run type checks: `mypy src/uzpy tests` or `hatch run lint:typing`.
+
+4.  **Updating Documentation (`AGENT.md`/`CLAUDE.md` workflow):**
+    *   If you make significant changes, consider if `PLAN.md`, `TODO.md`, or `CHANGELOG.md` need updates.
+    *   This `README.md` should be updated if your changes affect user-facing functionality, installation, or technical workings.
+
+5.  **Submitting Changes:**
+    *   Commit your changes with clear and descriptive commit messages.
+    *   Push your branch to your fork and open a Pull Request against the main `uzpy` repository.
+
+**Running Linters/Formatters/Tests (as per `CLAUDE.md`):**
+After making Python changes, you can run the full suite of checks:
+```bash
+fd -e py -x autoflake --in-place --remove-all-unused-imports {} \; \
+fd -e py -x pyupgrade --py311-plus {} \; \
+fd -e py -x ruff check --fix --unsafe-fixes {} \; \
+fd -e py -x ruff format --respect-gitignore --target-version py311 {} \; \
+python -m pytest
+```
+(Note: `pyupgrade --py311-plus` means Python 3.11+ syntax. `uzpy` targets 3.10+, so adjust if needed, though `ruff` often handles modern syntax upgrades well.)
+Many of these are also covered by `hatch` scripts (e.g., `hatch run lint:fix`, `hatch run test:test`).
+
+By following these guidelines, you'll help maintain the quality and consistency of the `uzpy` codebase.
