@@ -96,6 +96,7 @@ The primary CLI is accessed via the `uzpy` command (which is an alias for `uzpy-
     *   `--edit <path>` or `-e <path>`: Path to the file or directory whose docstrings will be modified.
     *   `--ref <path>` or `-r <path>`: Path to the file or directory to search for usages. Often this is your entire project root (e.g., `.`).
     *   `--dry-run`: Show what changes would be made without actually modifying files.
+    *   `--safe`: Use safe modifier to prevent syntax corruption (handles complex quote patterns).
     *   `--config <file_path>` or `-c <file_path>`: Path to a custom `.uzpy.env` configuration file.
     *   `--verbose` or `-v`: Enable verbose DEBUG logging.
     *   `--log-level <LEVEL>`: Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
@@ -108,6 +109,9 @@ The primary CLI is accessed via the `uzpy` command (which is an alias for `uzpy-
 
     # Perform a dry run on a single file
     uzpy run --edit my_module.py --ref . --dry-run
+    
+    # Use safe mode to prevent syntax corruption (recommended for complex codebases)
+    uzpy run --edit src/ --ref . --safe
     ```
 
 2.  **`clean`**: Remove "Used in:" sections from docstrings.
