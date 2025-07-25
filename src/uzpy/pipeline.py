@@ -14,7 +14,7 @@ from loguru import logger
 
 from uzpy.analyzer import CachedAnalyzer, ModernHybridAnalyzer, ParallelAnalyzer
 from uzpy.discovery import FileDiscovery, discover_files
-from uzpy.modifier import LibCSTModifier
+from uzpy.modifier import LibCSTModifier, SafeLibCSTModifier
 
 # Import base implementations for default fallback
 from uzpy.parser import TreeSitterParser
@@ -26,6 +26,7 @@ def run_analysis_and_modification(
     ref_path: Path,
     exclude_patterns: list[str] | None,
     dry_run: bool,
+    safe_mode: bool = False,
 ) -> dict[Construct, list[Reference]]:
     """
     Orchestrates the full uzpy pipeline: discovery, parsing, analysis,
@@ -36,6 +37,7 @@ def run_analysis_and_modification(
         ref_path: Path containing reference files to search.
         exclude_patterns: Additional patterns to exclude from analysis.
         dry_run: Show what changes would be made without modifying files.
+        safe_mode: Use SafeLibCSTModifier to prevent syntax corruption.
         parser_instance: Optional pre-configured parser instance.
                          If None, a default TreeSitterParser is used.
         analyzer_instance: Optional pre-configured analyzer instance.
@@ -132,7 +134,13 @@ def run_analysis_and_modification(
             # This should be the common ancestor or the main project directory being analyzed.
             # Using ref_path's parent (if file) or itself (if dir) is a common heuristic.
             project_root_for_modifier = ref_path.parent if ref_path.is_file() else ref_path
-            modifier = LibCSTModifier(project_root_for_modifier)
+            
+            # Use safe modifier if requested
+            if safe_mode:
+                logger.info("Using SafeLibCSTModifier to prevent syntax corruption")
+                modifier = SafeLibCSTModifier(project_root_for_modifier)
+            else:
+                modifier = LibCSTModifier(project_root_for_modifier)
 
             modification_results = modifier.modify_files(usage_results)
 

@@ -185,6 +185,7 @@ def run(
         None, "--ref", "-r", help="Reference path for usage search (overrides config).", resolve_path=True
     ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show changes without modifying files."),
+    safe_mode: bool = typer.Option(False, "--safe", help="Use safe modifier to prevent syntax corruption."),
 ):
     """
     Analyze codebase and update docstrings with usage information.
@@ -222,6 +223,7 @@ def run(
             ref_path=current_ref_path,
             exclude_patterns=settings.exclude_patterns,
             dry_run=dry_run,
+            safe_mode=safe_mode,
             # We might need to pass the configured analyzer and parser instances here
             # For example: parser_instance=_parser, analyzer_instance=analyzer
             # This requires run_analysis_and_modification to be adapted.
