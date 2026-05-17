@@ -1,21 +1,17 @@
----
-# this_file: src_docs/md/04-configuration.md
----
-
 # Configuration
 
-This chapter covers uzpy's extensive configuration system, including configuration files, environment variables, and advanced customization options.
+This chapter explains uzpy's configuration system: files, environment variables, and advanced options.
 
 ## Configuration Overview
 
-uzpy uses a hierarchical configuration system:
+uzpy applies configuration in this order:
 
-1. **Default values** (built into uzpy)
+1. **Defaults** (built into uzpy)
 2. **Configuration file** (`.uzpy.env`)
 3. **Environment variables** (`UZPY_*`)
 4. **Command-line arguments** (highest priority)
 
-Each level can override the previous ones, giving you flexible control over uzpy's behavior.
+Each level overrides the previous one.
 
 ## Configuration File
 
@@ -24,7 +20,6 @@ Each level can override the previous ones, giving you flexible control over uzpy
 Create a `.uzpy.env` file in your project root:
 
 ```bash
-# Basic uzpy configuration
 UZPY_EDIT_PATH=src/
 UZPY_REF_PATH=.
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,*.pyc,build/,dist/
@@ -36,38 +31,41 @@ UZPY_LOG_LEVEL=INFO
 
 ### Custom Configuration File
 
-Use a custom configuration file location:
+Specify a custom config file:
 
 ```bash
-# Custom config file
 uzpy run --config /path/to/my-config.env
+```
 
-# Environment variable
+Or use an environment variable:
+
+```bash
 export UZPY_CONFIG_FILE=/path/to/my-config.env
 ```
 
 ### Multiple Configuration Files
 
-Layer configurations for different environments:
+Layer configs for different environments:
 
 ```bash
-# Base configuration: .uzpy.env
+# Base: .uzpy.env
 UZPY_EDIT_PATH=src/
 UZPY_REF_PATH=.
 UZPY_USE_CACHE=true
 
-# Development overrides: .uzpy.dev.env  
+# Dev: .uzpy.dev.env  
 UZPY_LOG_LEVEL=DEBUG
 UZPY_VERBOSE=true
 UZPY_ANALYZER_TYPE=jedi
 
-# Production overrides: .uzpy.prod.env
+# Prod: .uzpy.prod.env
 UZPY_LOG_LEVEL=WARNING
 UZPY_SAFE_MODE=true
 UZPY_ANALYZER_TYPE=modern_hybrid
 ```
 
-Load specific config:
+Load a specific config:
+
 ```bash
 uzpy run --config .uzpy.dev.env
 ```
@@ -82,14 +80,14 @@ uzpy run --config .uzpy.dev.env
 | `UZPY_REF_PATH` | Path(s) to search for usages | `.,tests/` | (required) |
 | `UZPY_EXCLUDE_PATTERNS` | Comma-separated exclusion patterns | `**/*.pyc,build/` | See below |
 
-**Path examples:**
+Examples:
 
 ```bash
 # Single paths
 UZPY_EDIT_PATH=src/
 UZPY_REF_PATH=.
 
-# Multiple paths (comma-separated)
+# Multiple paths
 UZPY_EDIT_PATH=src/,lib/,utils/
 UZPY_REF_PATH=.,tests/,examples/
 
@@ -100,7 +98,7 @@ UZPY_REF_PATH=src/,tests/
 
 ### Exclusion Patterns
 
-Default exclusions (you can add to these):
+Default exclusions:
 
 ```bash
 UZPY_EXCLUDE_PATTERNS=\
@@ -122,7 +120,7 @@ UZPY_EXCLUDE_PATTERNS=\
 **/.DS_Store
 ```
 
-**Custom exclusions:**
+Custom exclusions:
 
 ```bash
 # Add project-specific exclusions
@@ -149,11 +147,13 @@ UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,**/generated/**,**/proto/**
 | `ast_grep` | Structural pattern matching | Simple pattern finding |
 | `ruff` | Basic ruff-based analysis | Minimal dependencies |
 
+Set analyzer:
+
 ```bash
-# Set default analyzer
+# Default
 UZPY_ANALYZER_TYPE=modern_hybrid
 
-# Override for specific runs
+# Override for one run
 uzpy run --analyzer jedi
 ```
 
@@ -162,7 +162,6 @@ uzpy run --analyzer jedi
 Fine-tune the modern hybrid analyzer:
 
 ```bash
-# Modern hybrid configuration
 UZPY_ANALYZER_TYPE=modern_hybrid
 UZPY_MODERN_HYBRID_RUFF_THRESHOLD=100
 UZPY_MODERN_HYBRID_ASTGREP_THRESHOLD=50
@@ -193,15 +192,15 @@ UZPY_HYBRID_PREFER_JEDI=true
 Configure specific analyzers:
 
 ```bash
-# Jedi analyzer
+# Jedi
 UZPY_JEDI_FOLLOW_IMPORTS=true
 UZPY_JEDI_AUTO_IMPORT_MODULES=true
 
-# Rope analyzer  
+# Rope
 UZPY_ROPE_PROJECT_ROOT=.
 UZPY_ROPE_IGNORE_SYNTAX_ERRORS=true
 
-# Pyright analyzer
+# Pyright
 UZPY_PYRIGHT_CONFIG_FILE=pyrightconfig.json
 UZPY_PYRIGHT_TYPE_CHECK_MODE=basic
 ```
@@ -219,14 +218,14 @@ UZPY_CACHE_DIR=~/.cache/uzpy
 UZPY_PARSER_CACHE_SIZE=1000
 UZPY_ANALYZER_CACHE_SIZE=500
 
-# Cache expiration
-UZPY_CACHE_TTL=86400  # 24 hours in seconds
+# Cache expiration (seconds)
+UZPY_CACHE_TTL=86400
 ```
 
 ### Cache Management
 
 ```bash
-# Per-analyzer cache settings
+# Per-analyzer cache
 UZPY_CACHE_PARSER_ENABLED=true
 UZPY_CACHE_ANALYZER_ENABLED=true
 UZPY_CACHE_COMPRESS=true
@@ -245,7 +244,7 @@ UZPY_CACHE_EVICTION_POLICY=lru
 UZPY_PARALLEL_ENABLED=true
 UZPY_PARALLEL_MAX_WORKERS=4
 
-# Process pool configuration
+# Process pool
 UZPY_PARALLEL_CHUNK_SIZE=10
 UZPY_PARALLEL_TIMEOUT=300
 ```
@@ -253,7 +252,7 @@ UZPY_PARALLEL_TIMEOUT=300
 ### Analysis Timeouts
 
 ```bash
-# Global timeout per construct (seconds)
+# Global timeout (seconds)
 UZPY_TIMEOUT=30
 
 # Per-analyzer timeouts
@@ -296,7 +295,7 @@ UZPY_DOCSTRING_STYLE=google  # google, numpy, sphinx, plain
 UZPY_DOCSTRING_MAX_LINE_LENGTH=79
 UZPY_DOCSTRING_INDENT_SIZE=4
 
-# Usage section formatting
+# Usage section
 UZPY_USAGE_SECTION_TITLE="Used in:"
 UZPY_USAGE_RELATIVE_PATHS=true
 UZPY_USAGE_SORT_PATHS=true
@@ -413,7 +412,6 @@ UZPY_TIMEOUT=60
 For large monorepos with multiple Python packages:
 
 ```bash
-# .uzpy.env
 UZPY_EDIT_PATH=packages/core/,packages/utils/,packages/api/
 UZPY_REF_PATH=packages/,tests/,scripts/
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,**/node_modules/**,**/build/**
@@ -427,7 +425,6 @@ UZPY_PARALLEL_MAX_WORKERS=8
 For Python libraries:
 
 ```bash
-# .uzpy.env  
 UZPY_EDIT_PATH=src/mylib/
 UZPY_REF_PATH=src/,tests/,examples/,docs/
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,build/,dist/,*.egg-info/
@@ -441,7 +438,6 @@ UZPY_DOCSTRING_STYLE=sphinx
 For Python applications:
 
 ```bash
-# .uzpy.env
 UZPY_EDIT_PATH=app/,lib/
 UZPY_REF_PATH=.
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,static/,media/,migrations/
@@ -491,12 +487,11 @@ UZPY_ANALYZER_TYPE=jedi          # Minimal dependencies
 
 ### Template Generation
 
-Create configuration templates for common scenarios:
+Create configuration templates:
 
 ```bash
 # Generate basic template
 cat > .uzpy.env << EOF
-# uzpy configuration
 UZPY_EDIT_PATH=src/
 UZPY_REF_PATH=.
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,*.pyc,build/,dist/
@@ -512,7 +507,7 @@ EOF
 Share configuration across team members:
 
 ```bash
-# .uzpy.team.env (checked into version control)
+# .uzpy.team.env (version controlled)
 UZPY_EDIT_PATH=src/
 UZPY_REF_PATH=.
 UZPY_EXCLUDE_PATTERNS=**/__pycache__/**,*.pyc,build/,dist/
@@ -520,17 +515,15 @@ UZPY_USE_CACHE=true
 UZPY_ANALYZER_TYPE=modern_hybrid
 UZPY_SAFE_MODE=true
 
-# .uzpy.env (local overrides, in .gitignore)
+# .uzpy.env (local overrides, .gitignore)
 UZPY_LOG_LEVEL=DEBUG
 UZPY_VERBOSE=true
 ```
 
 ## Next Steps
 
-With uzpy configured for your project:
+With uzpy configured:
 
-1. **[Understand the architecture](05-architecture-overview.md)** to see how components work together
-2. **[Use the API](06-api-reference.md)** for programmatic access
-3. **[Extend uzpy](07-extending-uzpy.md)** with custom analyzers or modifiers
-
-The next chapter provides an in-depth look at uzpy's architecture and design.
+1. **[Understand the architecture](05-architecture-overview.md)**
+2. **[Use the API](06-api-reference.md)**
+3. **[Extend uzpy](07-extending-uzpy.md)**

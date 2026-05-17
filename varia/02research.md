@@ -1,132 +1,122 @@
 # Objective 1
 
 <objective>
-`whereused` is supposed to be a Python tool that: 
+`whereused` is a Python tool that:
 
-- takes an --edit path (to a `.py` file, or to a folder which the tool will recursively search for `.py` files). 
-- optionally takes a --ref path (to a `.py` file, or to a folder which the tool will recursively search for `.py` files); if not provided, --ref is the same as --edit
+- Takes an --edit path (to a `.py` file or folder to recursively scan for `.py` files)
+- Optionally takes a --ref path (same format as --edit); if omitted, --ref equals --edit
 
-The tool then scans the ref codebase and the edit codebase. For each construct (module, function, class and method) in the edit codebase, the tool adds a list of paths relative to the ref folder, so that each path indicates one file in which the given construct is used.
+The tool scans both codebases. For each construct (module, function, class, method) in the edit codebase, it adds a list of paths relative to the ref folder indicating files where that construct is used.
 
-The tool writes the list, prefixed with `Used in:`, into docstring of the given construct (at the end of the existing docstring, or as the new docstring if the construct has no docstring).
+It writes this list, prefixed with `Used in:`, into the construct's docstring—at the end of existing docstrings, or as a new docstring if none exists.
 </objective>
 
 # Research 1
 
 ## AST Parsing and Docstring Extraction Libraries
 
-* **Python `ast` module (built-in)** – The built-in `ast` module can parse Python source code into an Abstract Syntax Tree, providing access to nodes for functions, classes, etc. This is a foundation for static analysis in Python. Python 3.9 introduced `ast.unparse` to convert an AST back to source code, enabling programmatic code modifications (though this may lose original formatting). The AST is useful for locating definitions and their docstring nodes (the first `ast.Expr` in a function/class body). However, bare AST does not retain comments or exact formatting.
+* **Python `ast` module (built-in)** – Parses Python source into an Abstract Syntax Tree. Provides access to nodes for functions, classes, etc. Python 3.9+ supports `ast.unparse` to convert AST back to source code, enabling modifications (though formatting may be lost). Useful for locating definitions and their docstring nodes (first `ast.Expr` in function/class body). Does not retain comments or exact formatting.
 
-* **Parsers for All Python Versions** – Tools like **`typed_ast`** (now part of `ast` for Python 3.8+) and **`gast`** provide version-agnostic AST parsing. `gast` in particular is used alongside libraries like Beniget to create a unified AST across Python versions. Another parser is **Parso**, the parsing library behind Jedi, which can handle multiple Python versions and even incomplete code. These parsers can extract code structure without executing it, which is essential for this static analysis use-case.
+* **Parsers for All Python Versions** – Tools like **`typed_ast`** (now part of `ast` for Python 3.8+) and **`gast`** offer version-agnostic AST parsing. `gast` is used with libraries like Beniget to create unified ASTs across Python versions. **Parso**, the parser behind Jedi, handles multiple Python versions and incomplete code. These extract code structure without execution, essential for static analysis.
 
-* **Griffe** – *Griffe* is a library focused on **extracting the structure and signatures of an entire Python codebase**. It traverses the AST to build a model of modules, classes, functions, and their docstrings. Griffe can be used to collect all definitions (with docstrings) in a project, which aligns with the “--edit” codebase parsing. It’s intended for documentation and API analysis, and thus can serve to gather constructs and existing docstrings in the code.
+* **Griffe** – Extracts structure and signatures of entire Python codebases. Traverses AST to build models of modules, classes, functions, and docstrings. Can collect all definitions (with docstrings) in a project, aligning with "--edit" codebase parsing. Intended for documentation and API analysis.
 
 ## Static Analysis Tools for Finding Symbol Usages
 
-* **Rope** – *Rope* is a Python **refactoring library** that includes features for finding occurrences of names across a codebase. It can statically resolve imports and names to support renaming and other refactorings. In particular, `rope.contrib.findit.find_occurrences()` can find all references to a given function, method, or variable in a project. Rope builds an internal index of the project’s modules and abstracts the Python AST into an object model, which helps it achieve accurate cross-module searches. This makes Rope a strong candidate for locating where a construct is used (similar to IDE “find usages”). *Note:* Rope can also apply the changes (e.g. renaming or adding text to docstrings) while preserving code format to a reasonable extent, since it operates with minimal diffs.
+* **Rope** – Python refactoring library with features for finding name occurrences across codebases. `rope.contrib.findit.find_occurrences()` finds all references to functions, methods, or variables. Builds internal module index and abstracts AST into object model for accurate cross-module searches. Can apply changes while preserving format through minimal diffs.
 
-* **Jedi** – *Jedi* is a static analysis and auto-completion library typically used in editors. It has a rich understanding of Python code and can **find references** to definitions. Jedi’s API includes a `Script.get_references()` method that returns all usage locations of a given name (definition). Jedi can resolve imports, handle scopes, and infer types to a degree, giving it high accuracy in identifying where functions or classes are used. It focuses on **“goto definition” and “find references”** functionality. For the `whereused` tool, Jedi could be leveraged to retrieve all references of each symbol defined in the `--edit` codebase within the `--ref` codebase.
+* **Jedi** – Static analysis and auto-completion library used in editors. Has `Script.get_references()` to return usage locations of names. Resolves imports, handles scopes, and infers types to identify where functions or classes are used. Focuses on "goto definition" and "find references".
 
-* **astroid (Pylint’s AST)** – *astroid* is the AST framework powering Pylint, with support for name resolution and inference. It can be used to walk code, resolve imports, and find where names are used or defined. While astroid doesn’t have a single “find references” call, it provides the building blocks (like scoped name lookup and inference) to track usage of a symbol. It’s useful for building a custom static analyzer that needs to handle Python’s dynamic features (imports, attributes, etc.) in a static way.
+* **astroid (Pylint’s AST)** – AST framework powering Pylint, with name resolution and inference support. While no single "find references" call, provides scoped name lookup and inference to track symbol usage. Handles Python’s dynamic features statically.
 
-* **Beniget (Def-Use Chains)** – *Beniget* analyzes an AST to produce **definition-use chains**. It maps definitions to their uses and vice versa, within a given module’s AST. Using Beniget on each module of the `--ref` codebase can help link every `Name` usage back to the function or class definition it refers to. Beniget works across all Python 3 versions (via gast) and can provide a precise mapping of where each defined symbol is used. This is highly relevant for implementing the “Used in: \[files]” lists, as it directly computes use-def relationships.
+* **Beniget (Def-Use Chains)** – Produces definition-use chains from AST. Maps definitions to uses within modules. Works across Python 3 versions via gast. Directly computes use-def relationships—relevant for generating "Used in: [files]" lists.
 
-* **Call Graph Generators** – Tools like *Pyan* and *PyCG* construct call graphs, effectively identifying which functions call which others (and where). **Pyan** performs a static analysis of Python code to build a directed graph of objects and how they **define or use each other**. It parses the codebase and can output a graph (Graphviz, etc.), but its underlying analysis (though “rather superficial”) can be used to list function usages. **PyCG** is a more advanced, research-based tool that generates call graphs with higher precision and scalability. It handles dynamic features (higher-order functions, imported modules discovery, etc.) and could be used to find usage of functions across modules. These tools demonstrate approaches to static inter-procedural analysis; their algorithms or code could be repurposed to detect usages for `whereused`.
+* **Call Graph Generators** – Tools like *Pyan* and *PyCG* identify function calls across modules. Pyan builds directed graphs of object usage (superficial but usable). PyCG offers higher precision and handles dynamic features. Algorithms can detect usages for `whereused`.
 
-* **Vulture** – *Vulture* finds unused code by static analysis, essentially the complement of `whereused`. It scans a codebase to detect functions and classes that are never referenced. While its goal is identifying dead code, the underlying mechanism is to collect all defined symbols and all used symbols, then report those defined and not used. This means Vulture internally must detect usages of symbols. Its approach (fast static scanning with heuristics) could inform a strategy for `whereused` (for example, using a simple index of names); however, Vulture might not resolve *which* `func()` is being called if names clash. It’s a useful reference for a lightweight static usage analysis.
+* **Vulture** – Finds unused code by detecting defined but unreferenced symbols. Internally tracks all definitions and usages. Fast static scanning with heuristics. May not resolve ambiguous references (e.g., same name, different functions).
 
 ## Code Indexing and Search Libraries
 
-* **Whoosh (Full-Text Indexing)** – *Whoosh* is a pure-Python full-text indexing library. It allows building an index of text (or code) and querying it efficiently. For a large codebase, one strategy is to index all source files such that each identifier can be quickly searched. For example, you could index tokens or lines and then search for occurrences of a function name. Whoosh supports fielded search, so you might index “identifier: X in file Y” and query for a particular X. This can narrow down candidate files where a symbol appears, which you then filter with AST analysis for true positives. Using an index can improve performance when scanning many files for references.
+* **Whoosh (Full-Text Indexing)** – Pure-Python full-text indexing. Indexes source files for efficient symbol search. Supports fielded search: "identifier X in file Y". Narrows candidate files; filters with AST for accuracy. Improves performance over raw file scanning.
 
-* **ctags/Etags** – *Universal Ctags* can generate tag files for Python, which list where each class, function, and variable is defined. While ctags mainly indexes definitions, it can be combined with text search to find usages. Some Python-specific enhancers (like **python-ctags** bindings) allow querying the index. In a `whereused` scenario, one could use ctags to map definitions to files, and then perform keyword searches in those files for the symbol’s usage (noting this is textual and may need AST confirmation). Ctags provides a quick way to jump to definitions and could be part of a larger system for cross-referencing symbols.
+* **ctags/Etags** – Universal Ctags generates tag files listing definitions. Combined with text search, finds usages. Python-specific bindings (e.g., python-ctags) allow querying. Quick way to map definitions to files.
 
-* **Language Server Protocol (LSP) Implementations** – Python LSP servers (e.g. Microsoft’s *Pyright* or *pylance*, and *python-lsp-server* which uses Jedi) internally maintain an index of the project’s symbols and their locations to provide “Find All References” in editors. While not a library per se, they illustrate architectures that could be mimicked: on project load, parse all files, build a symbol table (mapping each definition to a list of usage locations). For instance, Jedi’s use in an LSP indexes modules so that references can be found quickly across a codebase. Drawing inspiration from these, one could implement a custom indexing scheme for `whereused` that caches symbol definitions and uses.
+* **Language Server Protocol (LSP) Implementations** – Python LSP servers (e.g., Pyright, pylance, python-lsp-server) maintain symbol indexes for "Find All References". Parse all files on load, build symbol tables mapping definitions to usage locations. Jedi-based LSPs index modules for fast cross-file reference lookups.
 
-* **Grepping and Code Search Tools** – Simpler approaches involve using tools like grep, Ack, or ripgrep to scan for occurrences of symbol names. This can be done programmatically (e.g., Python’s `glob` + file reading + regex). While this is quick and easy, it can produce false positives (matches in comments, or different symbols with the same name). It’s best combined with a parsing step. An indexed search (like Whoosh) is essentially an optimized grep. For high accuracy, any search hits should be verified by parsing that file and checking the identifier in context (ensuring it’s a real usage of the target construct, not just a coincidental substring).
+* **Grepping and Code Search Tools** – Use grep, Ack, ripgrep, or Python regex to scan for symbol names. Quick and simple, but can produce false positives (matches in comments, name collisions). Best combined with parsing steps. Indexed search (e.g., Whoosh) optimizes this approach.
 
 ## Code Rewriting and Docstring Modification Tools
 
-* **LibCST (Concrete Syntax Tree)** – *LibCST* provides a concrete syntax tree for Python, meaning it parses source code into a tree while **preserving all formatting and comments**. This is ideal for safely modifying code. One can locate a function or class node, then modify its docstring node (which appears as a `SimpleStatementLine` containing a `SimpleString`). LibCST ensures that when you re-export the code, the only changes are the ones you intended – formatting (indentation, spacing) and unrelated code remain untouched. LibCST also includes a **codemod framework** for bulk transformations. For example, one could write a LibCST transformer that finds all FunctionDef/ClassDef in the edit set and appends a bullet to the docstring. Using LibCST would guarantee minimal disruption to the code style.
+* **LibCST (Concrete Syntax Tree)** – Parses source into concrete syntax trees preserving formatting and comments. Ideal for safe modifications. Locates function/class nodes, modifies docstring nodes (`SimpleStatementLine` containing `SimpleString`). Re-exports code with minimal style disruption. Includes codemod framework for bulk transformations.
 
-* **RedBaron (Full Syntax Tree)** – *RedBaron* is built on the Baron parser and represents code as a **Full Syntax Tree (FST)**. Like LibCST, it keeps all original formatting (including whitespace and comments). RedBaron makes it convenient to navigate and modify the code; for instance, you can access `node.value` for a function’s docstring and simply concatenate a new string to it. It was explicitly designed to allow source code modifications with formatting preserved. RedBaron doesn’t perform static analysis itself, but it can be combined with static analysis tools (e.g., using Rope or astroid to find where to make changes, then RedBaron to apply them). For the `whereused` tool, RedBaron could parse the file from `--edit`, and you could then programmatically insert the “Used in…” lines into the docstring nodes.
+* **RedBaron (Full Syntax Tree)** – Built on Baron parser. Represents code as Full Syntax Tree, preserving whitespace and comments. Convenient navigation and modification (e.g., `node.value` for docstrings). Designed for source modifications with formatting retained. Combine with static analysis tools to apply changes.
 
-* **Bowler (Refactoring Toolkit)** – *Bowler* is a refactoring framework from Facebook, originally built on `lib2to3`/Fissix and now moving toward LibCST. It provides a fluent API to select code patterns and modify them. Bowler could be leveraged to insert text into docstrings by writing a custom modification rule. It is designed for large-scale code modifications and ensures the code remains valid after changes. While Bowler’s typical use is things like renaming symbols or fixing syntax, its infrastructure (parsing, applying changes, and an interactive diff tool) could be useful if `whereused` needed to handle many insertions at once in an interactive or reviewable way.
+* **Bowler (Refactoring Toolkit)** – Facebook’s refactoring framework, moving from `lib2to3`/Fissix to LibCST. Fluent API to select and modify code patterns. Can insert text into docstrings with custom rules. Designed for large-scale changes with validity checks. Includes interactive diff tools.
 
-* **AST-to-Code Tools** – If preserving formatting is less of a concern (the question notes we don’t mind docstring style nuances), one could use `ast` in combination with code-generation tools like **`astor`** or the built-in `ast.unparse`. These will regenerate source code from an AST. After using static analysis to determine usages, one approach is: parse the `--edit` file with `ast`, modify the AST nodes’ docstring values (for example, append the usage list to the string literal node), and then unparse it back to code. This will produce correct Python code with the updated docstrings. However, the downside is that original formatting (like exact indentation or quotation style of docstrings) may be altered. Still, it’s a straightforward method if consistency of style is not critical. The **Green Tree Snakes** documentation and others confirm that Python’s AST can be manipulated and then compiled back to source.
+* **AST-to-Code Tools** – Use `ast` with `astor` or `ast.unparse` to regenerate code. Parse `--edit` file, modify AST docstring nodes, unparse to code. Produces correct Python but may alter original formatting (indentation, quotes). Straightforward if style consistency isn't critical.
 
-* **Rope (for rewriting)** – In addition to finding occurrences, Rope can apply changes to code as part of its refactoring operations. For instance, a rename refactoring will rewrite all references. Rope’s knowledge of the codebase can be repurposed: one could theoretically use Rope’s core to insert text into docstrings for each definition and let it handle the file writing. This might be overkill for simply appending text, but Rope’s ability to **organize imports, preserve formatting, and perform cross-file changes** safely is proven. It could serve as an all-in-one solution: find occurrences and modify files accordingly.
+* **Rope (for rewriting)** – Also applies code changes as part of refactorings. Handles file writing, import organization, and formatting preservation. Can insert text into docstrings. Overkill for simple appends, but proven for cross-file changes.
 
 ## Related Projects and References
 
-When designing `whereused`, it’s useful to study similar projects:
+* **IDEs and LSPs** – PyCharm, VS Code have "Find Usages" features. Use static analysis and indexing. Inform `whereused` design (e.g., pre-indexing symbols).
 
-* **IDEs and LSPs** – IDEs like PyCharm and VS Code have *“Find Usages”* features for Python. These likely use sophisticated static analysis (type inference, etc.) plus indexing. While their implementations aren’t libraries, understanding that our goal is achievable (and the performance tricks they use, like pre-indexing symbols) can guide the choice of libraries above (e.g., using Jedi or building a custom index).
+* **Documentation Tools** – Sphinx autodoc/autoapi, pydoctor parse code to generate docs. Illustrate robust code structure parsing. AutoAPI and pydoctor show handling of multiple files/packages.
 
-* **Documentation Tools** – Tools such as *Sphinx* with the autodoc or autoapi extensions parse code to generate documentation. *Sphinx-AutoAPI* in particular can scan a codebase and produce an object model of it (somewhat like Griffe). Though they don’t track “where used,” they illustrate robust parsing of code structure, which is the first step of `whereused`. Similarly, *pydoctor* (used in Twisted) builds a code model including which classes/functions are referenced in docstrings. These could be a source of inspiration for parsing and handling multiple files and packages.
+* **Code Search Engines** – Sourcegraph, OpenGrok enable searching across large codebases. Use language-specific analyzers. Emphasize scalability. For large projects, indexing (e.g., Whoosh, SQLite FTS) improves speed.
 
-* **Code Search Engines** – Projects like *Sourcegraph* or *OpenGrok* enable searching across huge codebases, and they often include language-specific analyzers. For Python, Sourcegraph’s search may use a combination of ctags and text search. While not directly applicable as libraries, they emphasize scalability. If `whereused` needs to run on large projects, using an indexing approach (as noted above) is essential for speed. We might incorporate a lightweight version of this by using Whoosh or SQLite FTS to cache symbol locations.
+* **Testing on Large Codebases** – Validate tools on sizeable codebases. LibCST trades speed for accuracy. Hybrid: text search for candidates, AST parse for verification. Balance accuracy and performance.
 
-* **Testing on Large Codebases** – Finally, any chosen approach should be tested on a sizeable codebase to ensure it’s both accurate and performant. For example, using LibCST to parse every file might be slower than using the built-in ast (LibCST trades speed for accuracy in parsing). A hybrid approach could be considered: use simple text search to gather candidate usages, then verify with a fast AST parse (built-in ast) of those files. Balancing these tools will be key to meet the goal of *high accuracy without sacrificing performance*.
-
-Each tool above brings something to the table for implementing `whereused`. By combining **AST parsing** (to get definitions and modify docstrings), **static analysis** (to find where each symbol is used), and **code rewrite libraries** (to insert usage info without breaking code style), one can create a robust utility. The resources cited (documentation and repositories) provide further insight into usage and integration of these libraries in the `whereused` implementation.
-
-**Sources:**
-
-* Python AST library documentation; LibCST overview; RedBaron docs; Griffe documentation.
-* Rope documentation and StackOverflow reference for find\_occurrences; Jedi documentation (references); Astroid docs; Beniget README.
-* Pyan README; PyCG repository README; Vulture README.
-* Whoosh documentation and project info; Universal Ctags info.
-* Bowler README and notes on LibCST vs lib2to3; Green Tree Snakes (AST manipulation) guide.
+Each tool offers strengths for `whereused`. Combine AST parsing (definitions, docstring edits), static analysis (usage tracking), and code rewriting (safe modifications) for a robust utility.
 
 # Research 2
 
-The development of a Python code analysis tool that tracks where constructs are used across codebases requires careful selection of libraries and implementation strategies. Based on extensive research into existing tools and technologies, this report provides detailed recommendations for building your "whereused" tool with optimal performance and accuracy.
+Building a Python tool to track construct usage across codebases requires careful library selection. This report outlines recommendations for optimal performance and accuracy.
 
 ## Core Technology Stack Recommendations
 
 ### **Primary AST Parser: Tree-sitter Python**
 
-Tree-sitter emerges as the **best overall choice** for the whereused tool based on several critical advantages:
+Tree-sitter is the best overall choice due to:
 
-- **Incremental parsing** allows efficient re-analysis when files change (100x faster updates)
-- **Error recovery** continues parsing despite syntax errors, crucial for real-world codebases
-- **High performance** at 15,000-20,000 lines/second initial parsing
-- **Powerful query system** using S-expressions for pattern matching
-- **Low memory footprint** with streaming capabilities
+- **Incremental parsing** – Efficient re-analysis when files change (100x faster updates)
+- **Error recovery** – Continues parsing despite syntax errors
+- **High performance** – 15,000–20,000 lines/second initial parsing
+- **Powerful query system** – S-expression pattern matching
+- **Low memory footprint** – Streaming capabilities
 
-The combination of speed, error tolerance, and incremental updates makes Tree-sitter ideal for a tool that needs to continuously track references across potentially large and evolving codebases.
+Ideal for tools needing continuous reference tracking across large, evolving codebases.
 
 ### **Symbol Tracking: Hybrid Approach with Rope and Jedi**
 
-For cross-file reference tracking, combining **Rope** for accuracy with **Jedi** for performance provides the most comprehensive solution:
+Combine Rope (accuracy) with Jedi (performance):
 
-**Rope** excels at:
-- Precise cross-file reference finding with `find_occurrences()` API
-- Proper handling of Python's complex import systems
-- Inheritance hierarchy tracking
-- Confidence scoring for matches
+**Rope** handles:
+- Cross-file reference finding with `find_occurrences()`
+- Complex import systems
+- Inheritance hierarchies
+- Confidence scoring
 
-**Jedi** complements with:
-- Fast symbol resolution optimized for interactive use
-- Excellent caching mechanisms
-- Project-wide search capabilities
-- Better handling of large codebases
+**Jedi** adds:
+- Fast symbol resolution
+- Caching
+- Project-wide search
+- Large codebase handling
 
 ### **Code Modification: LibCST**
 
-For modifying docstrings while preserving formatting, **LibCST** stands out as the clear winner:
+For docstring edits with formatting preserved, LibCST is the clear choice:
 
-- **100% lossless formatting preservation** - critical for maintaining code review friendliness
-- **Type-safe API** with full mypy support
-- **Proven at scale** by Instagram/Meta
-- **Robust handling** of edge cases like missing docstrings or different quote styles
+- **Lossless formatting** – Critical for code review compatibility
+- **Type-safe API** with mypy support
+- **Proven at scale** – Used by Instagram/Meta
+- **Edge case handling** – Missing docstrings, quote styles
 
 ## Implementation Architecture
 
 ### Phase-Based Pipeline Design
 
-Based on successful patterns from tools like Snakefood and Pydeps, implement a three-phase pipeline:
+Three-phase pipeline (based on Snakefood, Pydeps):
 
 ```python
 class WhereusedPipeline:
@@ -149,7 +139,7 @@ class WhereusedPipeline:
 
 ### Efficient Cross-Reference Storage
 
-Use a hybrid data structure combining inverted indices with graph representations:
+Hybrid data structure with inverted indices and graphs:
 
 ```python
 class ReferenceIndex:
@@ -170,21 +160,21 @@ class ReferenceIndex:
 
 ### Handling Python's Dynamic Features
 
-The research reveals that perfect static analysis of Python is impossible, but practical accuracy is achievable through:
+Perfect static analysis is impossible, but practical accuracy is achievable:
 
-1. **Conservative analysis** - Over-report potential usages rather than miss them
-2. **Confidence scoring** - Mark uncertain references (e.g., getattr usage) with lower confidence
-3. **Import resolution** - Use Rope's proven algorithms for handling relative imports, star imports, and dynamic imports
-4. **Scope tracking** - Combine AST with Python's symtable module for accurate scope resolution
+1. **Conservative analysis** – Report potential usages rather than miss them
+2. **Confidence scoring** – Mark uncertain references (e.g., getattr) with lower confidence
+3. **Import resolution** – Use Rope’s algorithms for relative/star/dynamic imports
+4. **Scope tracking** – Combine AST with symtable for accurate scope resolution
 
 ### Performance Optimization Strategy
 
-For large codebases, implement these proven optimizations:
+For large codebases:
 
-1. **Incremental analysis** using Tree-sitter's capabilities
+1. **Incremental analysis** using Tree-sitter
 2. **Parallel file processing** with multiprocessing.Pool
-3. **Smart caching** of parsed ASTs with timestamp-based invalidation
-4. **Memory-efficient streaming** for files over 10,000 lines
+3. **Smart caching** of parsed ASTs with timestamp invalidation
+4. **Memory-efficient streaming** for large files
 
 ```python
 class IncrementalAnalyzer:
@@ -193,7 +183,6 @@ class IncrementalAnalyzer:
         if cache_key in self.ast_cache:
             return self.ast_cache[cache_key]
         
-        # Use Tree-sitter for parsing
         tree = self.parser.parse_file(file_path)
         self.ast_cache[cache_key] = tree
         return tree
@@ -201,7 +190,7 @@ class IncrementalAnalyzer:
 
 ### Symbol Resolution Best Practices
 
-Combine multiple approaches for maximum accuracy:
+Combine multiple approaches:
 
 1. **Primary resolution** through Tree-sitter queries:
 ```python
@@ -215,14 +204,14 @@ function_call_query = language.query("""
 """)
 ```
 
-2. **Fallback to Rope** for complex cases involving inheritance or dynamic dispatch
-3. **Jedi integration** for real-time updates during development
+2. **Fallback to Rope** for inheritance or dynamic dispatch
+3. **Jedi integration** for real-time updates
 
 ## Specialized Libraries for Specific Requirements
 
 ### File System Traversal
 
-Use **pathlib** with **gitignore_parser** for respecting ignore patterns:
+Use **pathlib** with **gitignore_parser**:
 ```python
 from pathlib import Path
 import fnmatch
@@ -235,20 +224,19 @@ def find_python_files(root, patterns=['.git', '__pycache__', '*.pyc']):
 
 ### Dependency Graph Visualization
 
-For understanding complex relationships, integrate **igraph** for analysis and **GraphViz** for visualization:
-- igraph handles graphs with millions of nodes efficiently
-- GraphViz produces readable visual output with automatic layout
+Integrate **igraph** (analysis) and **GraphViz** (visualization):
+- igraph handles large graphs efficiently
+- GraphViz provides readable layouts
 
 ### Error Handling and Robustness
 
-Implement graceful degradation based on patterns from production tools:
+Graceful degradation:
 ```python
 def safe_analyze(file_path):
     try:
         tree = parser.parse_file(file_path)
         return analyze_tree(tree)
     except SyntaxError:
-        # Fall back to text-based analysis
         return analyze_with_regex(file_path)
     except Exception as e:
         logging.warning(f"Failed to analyze {file_path}: {e}")
@@ -257,29 +245,29 @@ def safe_analyze(file_path):
 
 ## Performance Benchmarks and Expectations
 
-Based on empirical data from similar tools:
+Empirical data from similar tools:
 
-- **Initial analysis**: 5,000-10,000 lines/second (with caching)
+- **Initial analysis**: 5,000–10,000 lines/second (with caching)
 - **Incremental updates**: Near-instantaneous for single file changes
-- **Memory usage**: ~1GB per 100,000 lines of code analyzed
-- **Accuracy**: 95%+ for static imports, 70-80% for dynamic features
+- **Memory usage**: ~1GB per 100,000 lines analyzed
+- **Accuracy**: 95%+ for static imports, 70–80% for dynamic features
 
 ## Integration with Development Workflows
 
-Consider implementing:
+Consider:
 
-1. **Watch mode** using the `watchdog` library for real-time updates
-2. **Language Server Protocol** support for IDE integration
-3. **CI/CD hooks** for automated documentation updates
-4. **Configuration files** supporting `.whereused.toml` for project-specific settings
+1. **Watch mode** using `watchdog` for real-time updates
+2. **LSP support** for IDE integration
+3. **CI/CD hooks** for automated updates
+4. **Configuration files** (`.whereused.toml`) for project settings
 
 ## Conclusion and Implementation Roadmap
 
-The whereused tool can achieve production-quality results by combining:
+`whereused` can achieve production-quality results by combining:
 
 1. **Tree-sitter** for fast, error-tolerant parsing
 2. **Rope + Jedi** for accurate cross-file reference tracking  
 3. **LibCST** for safe code modification
-4. **Proven architectural patterns** from tools like Pydeps and Snakefood
+4. **Proven architectural patterns** from Pydeps and Snakefood
 
-Start with a minimal viable product focusing on function and class tracking, then progressively add support for methods, variables, and more complex Python constructs. The modular architecture allows incremental feature development while maintaining performance and accuracy.
+Start with MVP tracking functions and classes. Add methods, variables, and complex constructs incrementally. Modular architecture maintains performance and accuracy throughout development.

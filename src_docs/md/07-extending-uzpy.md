@@ -1,14 +1,10 @@
----
-# this_file: src_docs/md/07-extending-uzpy.md
----
-
 # Extending uzpy
 
-This chapter covers how to extend uzpy with custom components, including custom analyzers, modifiers, and parsers. Learn how to integrate new tools and customize uzpy's behavior for your specific needs.
+This chapter explains how to extend uzpy with custom components: analyzers, modifiers, and parsers. You'll learn to integrate new tools and adapt uzpy's behavior to your specific requirements.
 
 ## Extension Architecture
 
-uzpy uses a plugin-based architecture that makes it easy to extend with custom components:
+uzpy uses a plugin-based architecture for extensibility:
 
 ```mermaid
 graph TB
@@ -33,7 +29,7 @@ All extensions follow the same pattern:
 
 ## Custom Analyzers
 
-The most common extension is creating custom analyzers to integrate new tools or analysis techniques.
+Creating custom analyzers is the most frequent extension task, typically for integrating new tools or analysis methods.
 
 ### Basic Custom Analyzer
 
@@ -91,7 +87,7 @@ class MyCustomAnalyzer(BaseAnalyzer):
 
 ### Advanced Custom Analyzer
 
-Integrate with external tools:
+Integration with external tools:
 
 ```python
 # pylsp_analyzer.py  

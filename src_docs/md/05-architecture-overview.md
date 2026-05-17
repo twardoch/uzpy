@@ -1,14 +1,10 @@
----
-# this_file: src_docs/md/05-architecture-overview.md
----
-
 # Architecture Overview
 
-This chapter provides an in-depth look at uzpy's architecture, design principles, and how the various components work together to analyze code and update docstrings.
+This chapter describes uzpy's architecture, design principles, and how components work together to analyze code and update docstrings.
 
 ## System Architecture
 
-uzpy follows a modular, pipeline-based architecture with five main stages:
+uzpy uses a modular, pipeline-based architecture with five stages:
 
 ```mermaid
 graph LR
@@ -176,7 +172,7 @@ DEFAULT_EXCLUDE_PATTERNS = [
 **Tree-sitter advantages:**
 
 - **Error tolerance**: Continues parsing despite syntax errors
-- **Performance**: Very fast parsing of large files
+- **Performance**: Fast parsing of large files
 - **Incremental parsing**: Can parse only changed portions
 - **Language awareness**: Understands Python-specific syntax
 

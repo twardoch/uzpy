@@ -255,7 +255,7 @@ The tool now implements the full pipeline:
 
 - **Documentation**
   - Professional README with usage examples
-  - Detailed implementation plan (PLAN.md)
+  - Detailed implementation plan (TASKS.md)
   - Progress tracking (PROGRESS.md)
   - Comprehensive TODO list for future development
 

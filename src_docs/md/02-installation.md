@@ -1,16 +1,12 @@
----
-# this_file: src_docs/md/02-installation.md
----
-
 # Installation
 
-This chapter covers installing uzpy, managing dependencies, and setting up your development environment.
+This chapter explains how to install uzpy, manage dependencies, and set up your development environment.
 
 ## System Requirements
 
 ### Python Version
 
-uzpy requires **Python 3.10 or higher**. Check your Python version:
+uzpy requires **Python 3.10 or higher**. Check your version:
 
 ```bash
 python --version
@@ -21,12 +17,12 @@ python3 --version
 ### Supported Platforms
 
 - **Linux**: All major distributions
-- **macOS**: 10.15+ (Catalina and later)  
+- **macOS**: 10.15+ (Catalia and later)
 - **Windows**: Windows 10/11 with PowerShell or WSL
 
 ### Package Manager
 
-We recommend using `uv` for faster package management:
+Use `uv` for faster package management:
 
 ```bash
 # Install uv
@@ -39,7 +35,7 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 ### Method 1: Using uv (Recommended)
 
-Install the core package:
+Install core package:
 
 ```bash
 uv pip install uzpy
@@ -65,10 +61,10 @@ pip install uzpy[all]
 
 ### Method 3: Development Installation
 
-For contributing to uzpy or using the latest features:
+To contribute or use latest features:
 
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/twardoch/uzpy.git
 cd uzpy
 
@@ -78,7 +74,7 @@ uv pip install -e .[dev,test]
 
 ## Optional Dependencies
 
-uzpy has several optional dependency groups for different use cases:
+uzpy supports several dependency groups:
 
 ### Development Tools (`dev`)
 
@@ -87,11 +83,11 @@ uv pip install uzpy[dev]
 ```
 
 Includes:
-- `pre-commit` - Git hooks for code quality
-- `ruff` - Fast linter and formatter  
-- `mypy` - Static type checking
-- `pyupgrade` - Syntax modernization
-- `autoflake` - Remove unused imports
+- `pre-commit` - Git hooks
+- `ruff` - Linter and formatter
+- `mypy` - Type checking
+- `pyupgrade` - Syntax updates
+- `autoflake` - Import cleanup
 
 ### Testing Framework (`test`)
 
@@ -101,10 +97,10 @@ uv pip install uzpy[test]
 
 Includes:
 - `pytest` - Testing framework
-- `pytest-cov` - Coverage reporting
-- `pytest-xdist` - Parallel test execution
-- `pytest-benchmark` - Performance testing
-- `pytest-asyncio` - Async test support
+- `pytest-cov` - Coverage reports
+- `pytest-xdist` - Parallel execution
+- `pytest-benchmark` - Performance tests
+- `pytest-asyncio` - Async support
 
 ### Documentation (`docs`)
 
@@ -114,8 +110,8 @@ uv pip install uzpy[docs]
 
 Includes:
 - `sphinx` - Documentation generator
-- `sphinx-rtd-theme` - Read the Docs theme
-- `sphinx-autodoc-typehints` - Type hint documentation
+- `sphinx-rtd-theme` - Theme
+- `sphinx-autodoc-typehints` - Type hint docs
 - `myst-parser` - Markdown support
 
 ### All Dependencies
@@ -128,55 +124,55 @@ uv pip install uzpy[all]
 
 ## Core Dependencies
 
-uzpy automatically installs these core dependencies:
+uzpy automatically installs these:
 
 ### Analysis Engines
 
-- **`tree-sitter`** + **`tree-sitter-python`**: Fast, robust Python parsing
-- **`jedi`**: Python completion and static analysis  
-- **`rope`**: Python refactoring library
-- **`pyright`**: Microsoft's static type checker
-- **`ast-grep-py`**: Structural code search
+- **`tree-sitter`** + **`tree-sitter-python`**: Fast Python parsing
+- **`jedi`**: Code completion
+- **`rope`**: Refactoring library
+- **`pyright`**: Type checker
+- **`ast-grep-py`**: Code search
 
 ### Code Modification
 
-- **`libcst`**: Concrete syntax tree library for safe code modification
-- **`pathspec`**: `.gitignore`-style pattern matching
+- **`libcst`**: Syntax tree modification
+- **`pathspec`**: Gitignore-style patterns
 
 ### CLI and Configuration
 
-- **`typer`**: Modern CLI framework
-- **`rich`**: Rich text and beautiful formatting
-- **`pydantic-settings`**: Configuration management
-- **`loguru`**: Advanced logging
+- **`typer`**: Command-line interface
+- **`rich`**: Terminal formatting
+- **`pydantic-settings`**: Config management
+- **`loguru`**: Logging
 
 ### Storage and Caching
 
-- **`diskcache`**: Persistent caching
-- **`duckdb`**: Fast analytical database (future use)
-- **`sqlalchemy`**: ORM for structured storage
-- **`msgpack`**: Fast binary serialization
+- **`diskcache`**: File caching
+- **`duckdb`**: Analytical database (future use)
+- **`sqlalchemy`**: Database ORM
+- **`msgpack`**: Binary serialization
 
 ### File Monitoring
 
-- **`watchdog`**: File system event monitoring
+- **`watchdog`**: File system events
 
 ## Verifying Installation
 
-After installation, verify uzpy is working:
+Test uzpy after installation:
 
 ```bash
 # Check version
 uzpy --version
 
-# Test basic functionality
+# Basic help
 uzpy --help
 
-# Verify analyzers are available
+# Command help
 uzpy run --help
 ```
 
-You should see output similar to:
+Expected output:
 
 ```
 uzpy version 1.3.1
@@ -188,7 +184,7 @@ Python 3.11.5
 ### Using venv
 
 ```bash
-# Create virtual environment
+# Create environment
 python -m venv .venv
 
 # Activate (Linux/macOS)
@@ -214,53 +210,53 @@ conda activate uzpy
 pip install uzpy[all]
 ```
 
-### Using hatch (for development)
+### Using hatch (Development)
 
-uzpy uses hatch for development environment management:
+uzpy uses hatch for development:
 
 ```bash
 # Install hatch
 pip install hatch
 
-# Create development environment  
+# Create environment
 hatch env create
 
-# Enter the environment
+# Enter environment
 hatch shell
 
 # Run tests
 hatch run test:test
 
-# Run linting
+# Lint code
 hatch run lint:all
 ```
 
 ## Configuration Directory
 
-uzpy creates configuration and cache directories:
+uzpy creates these directories:
 
 ### Linux/macOS
 
 ```
-~/.cache/uzpy/          # Cache data
-~/.config/uzpy/         # Configuration files
+~/.cache/uzpy/          # Cache files
+~/.config/uzpy/         # Config files
 ```
 
 ### Windows
 
 ```
-%LOCALAPPDATA%\uzpy\cache\      # Cache data
-%APPDATA%\uzpy\config\          # Configuration files
+%LOCALAPPDATA%\uzpy\cache\      # Cache files
+%APPDATA%\uzpy\config\          # Config files
 ```
 
 ## External Tool Dependencies
 
-Some analyzers require external tools to be installed:
+Some features need external tools:
 
 ### ast-grep
 
 ```bash
-# Install ast-grep CLI (optional, improves performance)
+# Install CLI tool (optional)
 npm install -g @ast-grep/cli
 # or
 cargo install ast-grep
@@ -268,45 +264,44 @@ cargo install ast-grep
 
 ### Pyright
 
-Pyright is included as a Python package, but you can also install the CLI:
+Pyright is included, but you can install the CLI version:
 
 ```bash
 npm install -g pyright
 ```
 
-## Troubleshooting Installation
+## Troubleshooting
 
 ### Common Issues
 
 #### ImportError for tree-sitter
 
 ```bash
-# Ensure tree-sitter bindings are properly compiled
+# Reinstall bindings
 uv pip uninstall tree-sitter tree-sitter-python
 uv pip install tree-sitter tree-sitter-python
 ```
 
-#### Permission errors on macOS/Linux
+#### Permission errors (macOS/Linux)
 
 ```bash
-# Use user installation
+# Install for current user
 uv pip install --user uzpy[all]
 ```
 
 #### Windows compilation errors
 
 ```bash
-# Install Microsoft C++ Build Tools
-# Then try installation again
+# Install Microsoft C++ Build Tools first
 uv pip install uzpy[all]
 ```
 
 ### Dependency Conflicts
 
-If you encounter dependency conflicts:
+If conflicts occur:
 
 ```bash
-# Create a fresh virtual environment
+# Fresh environment
 python -m venv .venv-uzpy
 source .venv-uzpy/bin/activate  # or Windows equivalent
 uv pip install uzpy[all]
@@ -314,19 +309,19 @@ uv pip install uzpy[all]
 
 ### Checking Dependencies
 
-Verify all dependencies are correctly installed:
+Verify installation:
 
 ```bash
-# List installed packages
+# List packages
 uv pip list | grep -E "(uzpy|tree-sitter|jedi|rope|pyright)"
 
-# Check for conflicts
+# Check conflicts
 uv pip check
 ```
 
 ## Environment Variables
 
-Set these environment variables for system-wide configuration:
+Set these for system-wide config:
 
 ```bash
 # Add to ~/.bashrc, ~/.zshrc, or equivalent
@@ -339,24 +334,22 @@ export UZPY_LOG_LEVEL="INFO"
 
 ### VS Code
 
-Install the Python extension and configure your interpreter:
-
 1. Open Command Palette (`Ctrl+Shift+P`)
 2. Select "Python: Select Interpreter"
-3. Choose the environment where uzpy is installed
+3. Choose your uzpy environment
 
 ### PyCharm
 
-1. Go to Settings → Project → Python Interpreter
-2. Add interpreter from your uzpy environment
-3. Verify uzpy is listed in installed packages
+1. Settings → Project → Python Interpreter
+2. Add interpreter from uzpy environment
+3. Confirm uzpy appears in package list
 
 ## Next Steps
 
-With uzpy installed, you're ready to:
+With uzpy installed:
 
 1. **[Learn the command-line interface](03-command-line-usage.md)**
 2. **[Configure uzpy for your project](04-configuration.md)**
 3. **[Understand the architecture](05-architecture-overview.md)**
 
-The next chapter provides comprehensive CLI usage examples and options.
+Next chapter covers CLI usage in detail.

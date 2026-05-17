@@ -1,5 +1,12 @@
 # Work Progress
 
+## Sprint In Progress
+
+Scope: Repair modern analyzer stack, caching/parallel wrappers, and CLI/watch integration; add tests and verify.
+
+Baseline tests:
+- `uvx hatch test` failed during collection: missing `sgql` import from `astgrep_analyzer.py`.
+
 ## Completed Tasks
 
 ### Fixed Python Syntax Corruption Issue

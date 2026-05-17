@@ -44,10 +44,10 @@ In each source file, maintain the up-to-date `this_file` record that shows the p
 
 Work in rounds: 
 
-- Create `PLAN.md` as a detailed flat plan with `[ ]` items. 
+- Create `TASKS.md` as a detailed flat plan with `[ ]` items. 
 - Identify the most important TODO items, and create `TODO.md` with `[ ]` items. 
 - Implement the changes. 
-- Update `PLAN.md` and `TODO.md` as you go. 
+- Update `TASKS.md` and `TODO.md` as you go. 
 - After each round of changes, update `CHANGELOG.md` with the changes.
 - Update `README.md` to reflect the changes.
 

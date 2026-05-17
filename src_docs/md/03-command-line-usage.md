@@ -1,14 +1,10 @@
----
-# this_file: src_docs/md/03-command-line-usage.md
----
-
 # Command Line Usage
 
-This chapter provides comprehensive documentation for uzpy's command-line interface, covering all commands, options, and usage patterns.
+This chapter documents uzpy's command-line interface, including all commands, options, and usage patterns.
 
 ## CLI Overview
 
-uzpy provides a modern CLI built with Typer. The main command is `uzpy`, which is an alias for `uzpy-modern`. A legacy CLI is also available as `uzpy-legacy`.
+uzpy provides a modern CLI built with Typer. The main command is `uzpy`, which aliases to `uzpy-modern`. A legacy CLI exists as `uzpy-legacy`.
 
 ```bash
 uzpy [COMMAND] [OPTIONS]
@@ -16,7 +12,7 @@ uzpy [COMMAND] [OPTIONS]
 
 ## Global Options
 
-These options are available for all commands:
+These options work with all commands:
 
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -30,7 +26,7 @@ These options are available for all commands:
 
 ### `run` - Analyze and Update Docstrings
 
-The primary command for analyzing code and updating docstrings.
+Primary command for analyzing code and updating docstrings.
 
 ```bash
 uzpy run [OPTIONS]
@@ -43,7 +39,7 @@ uzpy run [OPTIONS]
 | `--edit` | `-e` | Path to files/directories to modify | ✓ |
 | `--ref` | `-r` | Path(s) to search for usages | ✓ |
 | `--dry-run` | | Preview changes without modifying files | |
-| `--safe` | | Use safe modifier to prevent syntax corruption | |
+| `--safe` | | Prevent syntax corruption | |
 
 #### Examples
 
@@ -53,7 +49,7 @@ uzpy run [OPTIONS]
 uzpy run --edit src/ --ref .
 ```
 
-**Safe mode (recommended for production):**
+**Safe mode (recommended):**
 ```bash
 uzpy run --edit src/ --ref . --safe
 ```
@@ -211,7 +207,7 @@ uzpy run --analyzer jedi --verbose
 
 ## Analyzer Types
 
-Choose different analysis engines based on your needs:
+Different analysis engines for different needs:
 
 ### `modern_hybrid` (Default)
 
@@ -225,36 +221,36 @@ uzpy run --edit src/ --ref . --analyzer modern_hybrid
 ```
 
 **Pros:**
-- Most accurate for modern Python codebases
+- Most accurate for modern Python
 - Fast with good caching
-- Type-aware analysis
+- Type-aware
 
 **Cons:**
-- Requires more dependencies
-- May be slower on first run
+- More dependencies
+- Slower on first run
 
 ### `hybrid`
 
 Traditional hybrid approach:
 - **jedi** for fast symbol resolution
-- **rope** for robust static analysis
+- **rope** for static analysis
 
 ```bash
 uzpy run --edit src/ --ref . --analyzer hybrid
 ```
 
 **Pros:**
-- Reliable and well-tested
-- Good balance of speed and accuracy
-- Fewer external dependencies
+- Reliable
+- Good speed/accuracy balance
+- Fewer dependencies
 
 **Cons:**
-- Less accurate for complex type relationships
-- May miss some modern Python patterns
+- Less accurate with complex types
+- May miss modern Python patterns
 
 ### `jedi`
 
-Fast analysis using only Jedi:
+Fast analysis using Jedi only:
 
 ```bash
 uzpy run --edit src/ --ref . --analyzer jedi
@@ -267,24 +263,24 @@ uzpy run --edit src/ --ref . --analyzer jedi
 
 **Cons:**
 - May miss complex references
-- Less accurate than hybrid approaches
+- Less accurate than hybrids
 
 ### `rope`
 
-Robust analysis using only Rope:
+Thorough analysis using Rope only:
 
 ```bash
 uzpy run --edit src/ --ref . --analyzer rope
 ```
 
 **Pros:**
-- Very thorough analysis
-- Handles complex refactoring scenarios
-- Good for precise results
+- Thorough
+- Handles complex refactoring
+- Precise
 
 **Cons:**
-- Slower than other options
-- May have higher memory usage
+- Slower
+- Higher memory usage
 
 ### `pyright`
 
@@ -296,12 +292,12 @@ uzpy run --edit src/ --ref . --analyzer pyright
 
 **Pros:**
 - Excellent type awareness
-- Modern Python feature support
+- Modern Python support
 - Cross-file analysis
 
 **Cons:**
-- Requires Node.js ecosystem
-- May be slower for large codebases
+- Requires Node.js
+- Slower on large codebases
 
 ## Environment Variables
 
@@ -337,15 +333,15 @@ uzpy run
 
 | Level | Description | Example Use |
 |-------|-------------|-------------|
-| `DEBUG` | Detailed debugging information | Development and troubleshooting |
-| `INFO` | General information about progress | Normal operation |
-| `WARNING` | Warning messages about potential issues | Production monitoring |
-| `ERROR` | Error messages for failures | Error tracking |
-| `CRITICAL` | Critical errors that stop execution | System failures |
+| `DEBUG` | Detailed debugging information | Development/troubleshooting |
+| `INFO` | General progress information | Normal operation |
+| `WARNING` | Potential issues | Production monitoring |
+| `ERROR` | Failures | Error tracking |
+| `CRITICAL` | System failures | Stopped execution |
 
 ### Verbose Output
 
-Enable verbose logging to see detailed analysis progress:
+Enable verbose logging:
 
 ```bash
 uzpy run --edit src/ --ref . --verbose
@@ -417,7 +413,7 @@ ERROR: Path 'nonexistent.py' not found
 ERROR: Permission denied writing to 'src/core.py'
 ```
 
-**Syntax error in target file:**
+**Syntax error:**
 ```
 ERROR: Failed to parse 'src/broken.py': invalid syntax at line 15
 ```
@@ -442,7 +438,7 @@ WARNING: Analysis of 'complex_function' timed out after 30 seconds
 
 ### Large Codebases
 
-For large projects (1000+ files):
+For projects with 1000+ files:
 
 ```bash
 # Enable parallel processing
@@ -460,7 +456,7 @@ uzpy run --edit src/ --ref . --exclude "**/test_*"
 
 ### Incremental Analysis
 
-Analyze only changed files by excluding unchanged directories:
+Analyze only changed files:
 
 ```bash
 # Only analyze core modules
@@ -494,31 +490,31 @@ alias uzpy-clean='uzpy clean --dry-run'
 
 ### Scripts
 
-Create scripts for common workflows:
+Create scripts for workflows:
 
 ```bash
 #!/bin/bash
 # uzpy-project.sh
 set -e
 
-echo "Running uzpy analysis on project..."
+echo "Running uzpy analysis..."
 uzpy run --edit src/ --ref . --safe --verbose
 
 echo "Running tests..."
 python -m pytest
 
-echo "Checking for syntax errors..."
+echo "Checking syntax..."
 python -m py_compile src/**/*.py
 
-echo "Analysis complete!"
+echo "Done."
 ```
 
 ## Next Steps
 
 Now that you understand the CLI:
 
-1. **[Configure uzpy](04-configuration.md)** for your specific needs
-2. **[Learn the architecture](05-architecture-overview.md)** to understand how it works
+1. **[Configure uzpy](04-configuration.md)** for your project
+2. **[Learn the architecture](05-architecture-overview.md)** 
 3. **[Use the API](06-api-reference.md)** for programmatic access
 
-The next chapter covers advanced configuration options and customization.
+The next chapter covers configuration options.

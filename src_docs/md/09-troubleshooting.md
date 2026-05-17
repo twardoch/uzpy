@@ -1,7 +1,3 @@
----
-# this_file: src_docs/md/09-troubleshooting.md
----
-
 # Troubleshooting
 
 This chapter covers common issues, debugging techniques, and solutions for uzpy problems. Learn how to diagnose and fix issues with analysis, file modifications, and performance.

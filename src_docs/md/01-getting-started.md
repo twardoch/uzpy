@@ -1,14 +1,10 @@
----
-# this_file: src_docs/md/01-getting-started.md  
----
-
 # Getting Started
 
 This chapter introduces uzpy through practical examples and walks you through your first usage scenarios.
 
 ## What uzpy Does
 
-uzpy analyzes your Python codebase to understand where functions, classes, methods, and modules are used, then automatically updates their docstrings with cross-reference information.
+uzpy analyzes your Python codebase to understand where functions, classes, methods, and modules are used. It then automatically updates their docstrings with cross-reference information.
 
 ### The Problem uzpy Solves
 
@@ -37,13 +33,12 @@ Here's a typical uzpy workflow:
 Run uzpy on your project to analyze and update docstrings:
 
 ```bash
-# Analyze the src/ directory, searching the entire project for usages
 uzpy run --edit src/ --ref .
 ```
 
 ### 2. Review Changes
 
-uzpy will modify docstrings in-place. Before:
+uzpy modifies docstrings in-place. Before:
 
 ```python
 def parse_config(config_path):
@@ -68,7 +63,7 @@ def parse_config(config_path):
 
 ### 3. Safe Mode (Recommended)
 
-For production code, use the `--safe` flag to prevent syntax corruption:
+Use the `--safe` flag for production code to prevent syntax corruption:
 
 ```bash
 uzpy run --edit src/ --ref . --safe
@@ -87,14 +82,12 @@ uzpy run --edit src/ --ref . --dry-run
 ### Analyzing a Single File
 
 ```bash
-# Update docstrings in one file, searching the whole project
 uzpy run --edit src/utils.py --ref .
 ```
 
 ### Analyzing Specific Directories
 
 ```bash
-# Update only core modules, search in src and tests
 uzpy run --edit src/core/ --ref src/ --ref tests/
 ```
 
@@ -187,9 +180,9 @@ class DataProcessor:
 
 ### Step 3: Verify and Commit
 
-1. Review the changes to ensure accuracy
-2. Run your tests to verify nothing broke
-3. Commit the updated docstrings
+1. Review changes for accuracy
+2. Run tests to ensure nothing broke
+3. Commit updated docstrings
 
 ## Understanding the Output
 
@@ -225,4 +218,4 @@ Now that you understand the basics:
 - **Use caching** for faster re-analysis of large projects
 - **Review changes** before committing to version control
 
-The next chapter covers installation and environment setup in detail.
+The next chapter covers installation and environment setup.

@@ -1,7 +1,3 @@
----
-# this_file: src_docs/md/08-performance-optimization.md
----
-
 # Performance Optimization
 
 This chapter covers techniques for optimizing uzpy's performance, especially for large codebases. Learn about caching strategies, parallel processing, analyzer selection, and system-level optimizations.
@@ -20,10 +16,10 @@ uzpy's performance depends on several factors:
 
 | Codebase Size | Files | Constructs | Time (Cold) | Time (Cached) |
 |---------------|-------|------------|-------------|---------------|
-| Small | <100 | <500 | 5-15s | 1-3s |
-| Medium | 100-1000 | 500-5000 | 30s-3m | 5-20s |
-| Large | 1000-10000 | 5000-50000 | 3-15m | 30s-2m |
-| Very Large | >10000 | >50000 | 15m+ | 2-10m |
+| Small         | <100  | <500       | 5-15s       | 1-3s          |
+| Medium        | 100-1000 | 500-5000 | 30s-3m     | 5-20s         |
+| Large         | 1000-10000 | 5000-50000 | 3-15m   | 30s-2m        |
+| Very Large    | >10000 | >50000     | 15m+        | 2-10m         |
 
 ## Caching Optimization
 
@@ -326,8 +322,6 @@ def process_large_codebase(constructs: List[Construct], search_paths: List[Path]
     
     for chunk_results in processor.process_in_chunks(constructs, search_paths):
         all_results.update(chunk_results)
-        
-        # Optional: save intermediate results
         print(f"Processed {len(all_results)} constructs so far...")
     
     return all_results
@@ -339,14 +333,14 @@ Choose the right analyzer for your performance needs.
 
 ### Performance Comparison
 
-| Analyzer | Speed | Accuracy | Memory | Best For |
-|----------|-------|----------|--------|----------|
-| `ruff` | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ | Quick checks, CI |
-| `jedi` | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | Large codebases |
-| `ast_grep` | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | Pattern matching |
-| `rope` | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ | Thorough analysis |
-| `pyright` | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | Type-heavy code |
-| `modern_hybrid` | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | General purpose |
+| Analyzer        | Speed | Accuracy | Memory | Best For          |
+|-----------------|-------|----------|--------|-------------------|
+| `ruff`          | ⭐⭐⭐⭐⭐ | ⭐⭐      | ⭐⭐⭐⭐⭐ | Quick checks, CI  |
+| `jedi`          | ⭐⭐⭐⭐  | ⭐⭐⭐     | ⭐⭐⭐⭐  | Large codebases   |
+| `ast_grep`      | ⭐⭐⭐⭐  | ⭐⭐⭐     | ⭐⭐⭐⭐  | Pattern matching  |
+| `rope`          | ⭐⭐    | ⭐⭐⭐⭐   | ⭐⭐    | Thorough analysis |
+| `pyright`       | ⭐⭐    | ⭐⭐⭐⭐⭐ | ⭐⭐    | Type-heavy code   |
+| `modern_hybrid` | ⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐   | General purpose   |
 
 ### Adaptive Analyzer Selection
 
@@ -907,6 +901,4 @@ With optimized performance:
 
 1. **[Troubleshoot remaining issues](09-troubleshooting.md)** when things don't work as expected
 2. **Monitor production usage** to identify new optimization opportunities
-3. **Share optimization strategies** with the uzpy community
-
-The final chapter covers troubleshooting common issues and debugging techniques.
+3. **Share optimization strategies**

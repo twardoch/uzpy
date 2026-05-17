@@ -1,20 +1,20 @@
 # Objective 1
 
 <objective>
-`whereused` is supposed to be a Python tool that: 
+`whereused` is a Python tool that:
 
-- takes an --edit path (to a `.py` file, or to a folder which the tool will recursively search for `.py` files). 
-- optionally takes a --ref path (to a `.py` file, or to a folder which the tool will recursively search for `.py` files); if not provided, --ref is the same as --edit
+- Takes an --edit path (to a `.py` file or folder; searches recursively for `.py` files)
+- Optionally takes a --ref path (same format as --edit); defaults to --edit if not provided
 
-The tool then scans the ref codebase and the edit codebase. For each construct (module, function, class and method) in the edit codebase, the tool adds a list of paths relative to the ref folder, so that each path indicates one file in which the given construct is used.
+The tool scans both codebases and, for each construct (module, function, class, method) in the edit codebase, adds a list of paths relative to the ref folder showing where that construct is used.
 
-The tool writes the list, prefixed with `Used in:`, into docstring of the given construct (at the end of the existing docstring, or as the new docstring if the construct has no docstring).
+Results are written into docstrings with the prefix `Used in:`, appended to existing docstrings or created as new ones if none exist.
 </objective>
 
 # Task 1
 
 <task>
-Perform extensive research report on the objective. Collect all tools, libraries and other resources that can be used to implement the objective.
+Research and report on tools, libraries, and resources for implementing the objective.
 
-Print the report into `/Users/adam/Developer/llm/2505a/whereused/02research.md`
+Output the report to `/Users/adam/Developer/llm/2505a/whereused/02research.md`
 </task>

@@ -69,7 +69,7 @@ class PyrightAnalyzer:
             # which includes definition locations and sometimes reference information, but not a direct
             # "find all references for symbol at X:Y" command that outputs simple references.
             #
-            # The PLAN.md suggested:
+            # The TASKS.md suggested:
             # cmd = [ "pyright", "--outputjson", f"--pythonpath={self.project_root}", "--files", str(construct.file_path)]
             # This command runs type checking and outputs errors/warnings, not references for a *specific* symbol.
             #

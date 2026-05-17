@@ -1,16 +1,12 @@
----
-# this_file: src_docs/md/06-api-reference.md
----
-
 # API Reference
 
-This chapter provides comprehensive documentation for using uzpy programmatically as a Python library, including all public APIs, data structures, and integration patterns.
+This chapter documents uzpy's Python library interface, including public APIs, data structures, and integration patterns.
 
 ## Core API
 
 ### High-Level Pipeline API
 
-The simplest way to use uzpy programmatically is through the pipeline API:
+The simplest way to use uzpy is through the pipeline API:
 
 ```python
 from pathlib import Path
@@ -32,7 +28,7 @@ for construct, references in usage_results.items():
 
 #### `run_analysis_and_modification`
 
-The main entry point for programmatic usage.
+Main entry point for programmatic usage.
 
 **Signature:**
 ```python
@@ -54,9 +50,9 @@ def run_analysis_and_modification(
 
 | Parameter | Type | Description | Default |
 |-----------|------|-------------|---------|
-| `edit_path` | `Path \| list[Path]` | Path(s) to files/directories to modify | Required |
-| `ref_path` | `Path \| list[Path]` | Path(s) to search for references | Required |
-| `exclude_patterns` | `list[str] \| None` | Exclusion patterns (gitignore style) | `None` |
+| `edit_path` | `Path \| list[Path]` | Files/directories to modify | Required |
+| `ref_path` | `Path \| list[Path]` | Paths to search for references | Required |
+| `exclude_patterns` | `list[str] \| None` | Gitignore-style exclusion patterns | `None` |
 | `analyzer_type` | `str` | Analyzer to use | `"modern_hybrid"` |
 | `use_cache` | `bool` | Enable caching | `True` |
 | `parallel` | `bool` | Enable parallel processing | `False` |
@@ -65,7 +61,7 @@ def run_analysis_and_modification(
 | `timeout` | `int` | Analysis timeout per construct (seconds) | `30` |
 
 **Returns:**
-- `dict[Construct, list[Reference]]`: Mapping of constructs to their references
+- `dict[Construct, list[Reference]]`: Constructs mapped to their references
 
 **Example:**
 ```python

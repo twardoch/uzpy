@@ -1,19 +1,14 @@
----
-# this_file: src_docs/md/index.md
----
-
 # uzpy: Python Code Usage Tracker & Docstring Updater
 
-**uzpy** (`ʌzpi`) is a powerful command-line tool and Python library that analyzes your Python codebase to discover where functions, classes, methods, and modules are used. It then automatically updates their docstrings with a clear "Used in:" section, providing valuable cross-references directly within your code.
+**uzpy** (`ʌzpi`) is a command-line tool and Python library that analyzes your codebase to find where functions, classes, methods, and modules are used. It then updates their docstrings with a "Used in:" section, adding cross-references directly into your code.
 
 ## TLDR
 
-uzpy helps you understand and document code relationships by:
+uzpy does three things:
 
-1. **Scanning** your Python files to find function/class definitions
-2. **Analyzing** where each construct is used throughout your codebase  
-3. **Updating** docstrings with "Used in:" sections automatically
-4. **Providing** fast, cached analysis with multiple analyzer backends
+1. **Scans** Python files for function/class definitions  
+2. **Finds** where each construct is used across the codebase  
+3. **Updates** docstrings with "Used in:" sections automatically
 
 **Quick start:**
 ```bash
@@ -23,58 +18,58 @@ uzpy run --edit src/ --ref . --safe
 
 ## Documentation Overview
 
-This documentation is organized into 9 comprehensive chapters:
+This documentation has 9 chapters:
 
 ### User Guide
 
 | Chapter | Topic | Description |
 |---------|-------|-------------|
-| **[Getting Started](01-getting-started.md)** | Quick introduction | Learn what uzpy does, see examples, and understand the workflow |
-| **[Installation](02-installation.md)** | Setup and requirements | Install uzpy, configure dependencies, and set up your environment |
-| **[Command Line Usage](03-command-line-usage.md)** | CLI reference | Complete guide to all commands, options, and usage patterns |
-| **[Configuration](04-configuration.md)** | Settings and customization | Configure analyzers, exclusion patterns, caching, and more |
+| **[Getting Started](01-getting-started.md)** | Quick introduction | What uzpy does, examples, and workflow |
+| **[Installation](02-installation.md)** | Setup and requirements | Install uzpy and set up dependencies |
+| **[Command Line Usage](03-command-line-usage.md)** | CLI reference | Commands, options, and usage patterns |
+| **[Configuration](04-configuration.md)** | Settings and customization | Configure analyzers, exclusions, caching |
 
 ### Developer Guide  
 
 | Chapter | Topic | Description |
 |---------|-------|-------------|
-| **[Architecture Overview](05-architecture-overview.md)** | System design | Understand uzpy's components, data flow, and design decisions |
-| **[API Reference](06-api-reference.md)** | Programmatic usage | Use uzpy as a library, integrate into scripts, and access internals |
-| **[Extending uzpy](07-extending-uzpy.md)** | Customization and plugins | Create custom analyzers, modifiers, and extend functionality |
+| **[Architecture Overview](05-architecture-overview.md)** | System design | Components, data flow, design decisions |
+| **[API Reference](06-api-reference.md)** | Programmatic usage | Use uzpy as a library or integrate into scripts |
+| **[Extending uzpy](07-extending-uzpy.md)** | Customization and plugins | Create custom analyzers and modifiers |
 
 ### Advanced Topics
 
 | Chapter | Topic | Description |
 |---------|-------|-------------|
-| **[Performance Optimization](08-performance-optimization.md)** | Speed and efficiency | Optimize analysis for large codebases, caching strategies, and parallelization |
-| **[Troubleshooting](09-troubleshooting.md)** | Common issues and solutions | Debug problems, handle edge cases, and resolve analysis failures |
+| **[Performance Optimization](08-performance-optimization.md)** | Speed and efficiency | Optimize analysis for large codebases |
+| **[Troubleshooting](09-troubleshooting.md)** | Common issues and solutions | Debug problems and handle edge cases |
 
 ## Key Features
 
-- **Multiple Analysis Engines**: Choose from Jedi, Rope, Pyright, ast-grep, and hybrid approaches
-- **Safe Modifications**: Prevents syntax corruption with the `--safe` modifier  
-- **Intelligent Caching**: Fast re-analysis using content-aware disk caching
-- **Parallel Processing**: Multi-core analysis for large codebases
-- **Flexible Configuration**: Extensive customization via `.uzpy.env` files and environment variables
-- **IDE Integration**: Works alongside your existing development tools
-- **Watch Mode**: Automatic re-analysis on file changes
+- **Multiple Analysis Engines**: Jedi, Rope, Pyright, ast-grep, hybrid  
+- **Safe Modifications**: Prevents syntax corruption with `--safe`  
+- **Intelligent Caching**: Fast re-analysis using content-aware cache  
+- **Parallel Processing**: Multi-core support for large projects  
+- **Flexible Configuration**: Customize via `.uzpy.env` or environment variables  
+- **IDE Integration**: Works with existing tools  
+- **Watch Mode**: Re-analyze on file changes
 
 ## Who Should Use uzpy?
 
-uzpy is designed for Python developers who want to:
+Python developers who want to:
 
-- **Improve code navigation** and understand component relationships
-- **Maintain living documentation** that evolves with the codebase  
-- **Streamline code reviews** by providing usage context
-- **Aid refactoring efforts** by identifying all usage sites
-- **Reduce cognitive load** when working with complex projects
+- Navigate code faster  
+- Keep documentation in sync  
+- Speed up code reviews  
+- Refactor safely  
+- Work with less mental overhead on complex projects
 
 ## Project Information
 
-- **Repository**: [github.com/twardoch/uzpy](https://github.com/twardoch/uzpy)
-- **PyPI Package**: [pypi.org/project/uzpy](https://pypi.org/project/uzpy/)
-- **License**: MIT
-- **Python Version**: 3.10+
+- **Repository**: [github.com/twardoch/uzpy](https://github.com/twardoch/uzpy)  
+- **PyPI Package**: [pypi.org/project/uzpy](https://pypi.org/project/uzpy/)  
+- **License**: MIT  
+- **Python Version**: 3.10+  
 - **Author**: Adam Twardoch
 
 ## Quick Example
@@ -100,4 +95,4 @@ def calculate_metrics(data):
     # implementation...
 ```
 
-Ready to get started? Head to [Getting Started](01-getting-started.md) for your first uzpy workflow!
+Ready? Start with [Getting Started](01-getting-started.md).
