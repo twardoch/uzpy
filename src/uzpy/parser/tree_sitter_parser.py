@@ -40,7 +40,7 @@ class TreeSitterParser:
     - uzpy/pipeline.py
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the Tree-sitter parser for Python.
 
         Used in:

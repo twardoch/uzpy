@@ -105,7 +105,7 @@ class Construct:
     full_name: str
     node: "Node | None" = None  # Keep reference to tree-sitter node
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Clean up docstring formatting after initialization.
 
         Used in:
@@ -142,7 +142,7 @@ class Construct:
 
             # Remove common indentation
             if min_indent != float("inf"):
-                lines = [lines[0]] + [line[min_indent:] if line.strip() else line for line in lines[1:]]
+                lines = [lines[0]] + [line[int(min_indent) :] if line.strip() else line for line in lines[1:]]
 
         return "\n".join(lines).strip()
 
@@ -154,7 +154,7 @@ class Construct:
         """
         return hash((self.name, self.type, str(self.file_path), self.line_number, self.full_name))
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         """Compare constructs based on unique identifying attributes.
 
         Used in:

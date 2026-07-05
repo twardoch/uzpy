@@ -318,3 +318,11 @@ VERSION.txt
 .specstory/.what-is-this.md
 
 testdata
+# Project build/scratch artifacts
+llms.txt
+md.txt
+.uzpy/
+
+# mkdocs build output (site_dir = ../docs); built and deployed by CI
+/docs/*
+!/docs/.nojekyll

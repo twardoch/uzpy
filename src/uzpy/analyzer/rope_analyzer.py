@@ -12,11 +12,12 @@ Used in:
 
 import time
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
-from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError
-from rope.base.project import Project
-from rope.contrib.findit import find_occurrences
+from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError  # type: ignore[import-untyped]
+from rope.base.project import Project  # type: ignore[import-untyped]
+from rope.contrib.findit import find_occurrences  # type: ignore[import-untyped]
 
 from uzpy.types import Construct, ConstructType, Reference
 
@@ -184,7 +185,7 @@ class RopeAnalyzer:
 
         return usage_references
 
-    def _find_construct_offset(self, construct: Construct, resource) -> int | None:
+    def _find_construct_offset(self, construct: Construct, resource: Any) -> int | None:
         """
         Find the byte offset of a construct definition in a file.
 
@@ -225,7 +226,7 @@ class RopeAnalyzer:
                     return None
 
             # Calculate byte offset
-            offset = 0
+            offset: int = 0
             for i in range(construct.line_number - 1):
                 offset += len(lines[i]) + 1  # +1 for newline
             offset += name_pos + len(pattern.split()[-1]) // 2  # Position within the name
@@ -296,7 +297,7 @@ class RopeAnalyzer:
 
         return results
 
-    def get_project_info(self) -> dict[str, any]:
+    def get_project_info(self) -> dict[str, Any]:
         """Get information about the Rope project.
 
         Used in:

@@ -1,5 +1,7 @@
 # uzpy: Python Code Usage Tracker & Docstring Updater
 
+<p align="center"><img src="src_docs/md/assets/icon.png" alt="uzpy" width="200"></p>
+
 **uzpy** (`ʌzpi`) analyzes your Python codebase to find where functions, classes, methods, and modules are used. It then automatically updates their docstrings with a "Used in:" section for easy cross-referencing.
 
 ## Part 1: User Guide

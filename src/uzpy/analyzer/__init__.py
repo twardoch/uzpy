@@ -20,7 +20,7 @@ from uzpy.analyzer.ruff_analyzer import RuffAnalyzer
 __all__ = [
     "AstGrepAnalyzer",
     "CachedAnalyzer",
-    "HybridAnalyzer", 
+    "HybridAnalyzer",
     "JediAnalyzer",
     "ModernHybridAnalyzer",
     "ParallelAnalyzer",

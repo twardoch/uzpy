@@ -14,9 +14,7 @@ from uzpy.pipeline import run_analysis_and_modification
 
 @pytest.fixture
 def sample_project():
-    """Create a sample project for testing CLI.
-
-"""
+    """Create a sample project for testing CLI."""
     project_dir = Path(tempfile.mkdtemp())
 
     # Create a simple Python file
@@ -45,38 +43,32 @@ class SampleClass:
 
 
 def test_modern_cli_analysis(sample_project):
-    """Test modern CLI analysis functionality.
-
-"""
+    """Test modern CLI analysis functionality."""
     edit_path = sample_project
     ref_path = sample_project
     exclude_patterns = []
     dry_run = True
-    
+
     # Should run without errors
     result = run_analysis_and_modification(edit_path, ref_path, exclude_patterns, dry_run)
     assert isinstance(result, dict)
 
 
 def test_modern_cli_single_file(sample_project):
-    """Test modern CLI with single file.
-
-"""
+    """Test modern CLI with single file."""
     sample_file = sample_project / "sample.py"
     edit_path = sample_file
     ref_path = sample_file
     exclude_patterns = []
     dry_run = True
-    
+
     # Should run without errors
     result = run_analysis_and_modification(edit_path, ref_path, exclude_patterns, dry_run)
     assert isinstance(result, dict)
 
 
 def test_modern_cli_with_exclusions(sample_project):
-    """Test modern CLI with exclude patterns.
-
-"""
+    """Test modern CLI with exclude patterns."""
     # Create additional files to exclude
     (sample_project / "test_file.py").write_text("# Test file")
     (sample_project / "__pycache__").mkdir()
@@ -86,16 +78,14 @@ def test_modern_cli_with_exclusions(sample_project):
     ref_path = sample_project
     exclude_patterns = ["test_*", "__pycache__/*"]
     dry_run = True
-    
+
     # Should run without errors
     result = run_analysis_and_modification(edit_path, ref_path, exclude_patterns, dry_run)
     assert isinstance(result, dict)
 
 
 def test_modern_cli_with_reference_files(sample_project):
-    """Test modern CLI with different reference path.
-
-"""
+    """Test modern CLI with different reference path."""
     # Create a separate reference directory
     ref_dir = sample_project / "ref"
     ref_dir.mkdir()
@@ -110,7 +100,7 @@ hello_world()
     ref_path = sample_project
     exclude_patterns = []
     dry_run = True
-    
+
     # Should run without errors
     result = run_analysis_and_modification(edit_path, ref_path, exclude_patterns, dry_run)
     assert isinstance(result, dict)

@@ -3,10 +3,15 @@
 """
 Ruff-based analyzer for uzpy.
 
-This module provides a high-performance analyzer that uses Ruff's Rust-based
-AST analysis for basic usage detection. While not as comprehensive as Rope
-or Jedi, it's significantly faster for common use cases.
+This module provides a RuffAnalyzer class that uses the Ruff command-line
+tool to perform quick checks on Python files. This can be used for
+preliminary analysis, such as identifying unused imports or potentially
+dead code, which can indirectly inform about construct usage.
 
+Note: Ruff is primarily a linter and formatter. Using it to find specific
+construct usages (references) is limited compared to dedicated tools like
+Jedi, Rope, or Pyright. This analyzer might be more useful for identifying
+a lack of usage (e.g., unimported modules/names).
 """
 
 import json
@@ -21,16 +26,8 @@ from uzpy.types import Construct, ConstructType, Reference
 
 class RuffAnalyzer:
     """
-    Fast analyzer using Ruff for basic usage detection.
-
-    This analyzer leverages Ruff's speed for quick initial analysis,
-    particularly useful for finding imports and basic function calls.
-    It's designed to be used as a first pass before more comprehensive
-    analyzers.
-
-    Used in:
-    - src/uzpy/analyzer/__init__.py
-    - src/uzpy/analyzer/modern_hybrid_analyzer.py
+    An analyzer that uses the Ruff tool to perform checks.
+    It's not a direct reference finder but can provide clues about usage.
     """
 
     def __init__(self, project_root: Path):
@@ -38,16 +35,11 @@ class RuffAnalyzer:
         Initialize the RuffAnalyzer.
 
         Args:
-            project_root: Root directory of the project
-            exclude_patterns: Patterns to exclude from analysis (not used by Ruff directly)
-
+            project_root: The root directory of the project being analyzed.
+                          Ruff typically works best when run from the project root.
         """
-        # Handle case where project_root is a file instead of directory
-        if project_root.is_file():
-            self.project_root = project_root.parent
-        else:
-            self.project_root = project_root
-        self.exclude_patterns = exclude_patterns or []
+        self.project_root = project_root
+        logger.info(f"RuffAnalyzer initialized for project root: {self.project_root}")
 
     def _run_ruff(self, target_path: Path, select_rules: str = "F401,F811") -> list[dict[str, Any]]:
         """
@@ -58,10 +50,7 @@ class RuffAnalyzer:
             select_rules: Comma-separated list of Ruff rules to check.
 
         Returns:
-            List of references to the construct
-
-        Used in:
-        - src/uzpy/analyzer/modern_hybrid_analyzer.py
+            A list of diagnostic dictionaries from Ruff's JSON output.
         """
         try:
             # It's often better to run ruff on individual files if we're analyzing specific file contexts
@@ -91,7 +80,7 @@ class RuffAnalyzer:
 
             if process.stdout:
                 try:
-                    return json.loads(process.stdout)
+                    return json.loads(process.stdout)  # type: ignore[no-any-return]  # json.loads is typed Any
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse Ruff JSON output for {target_path}: {e}\nOutput:\n{process.stdout}")
                     return []
@@ -114,8 +103,7 @@ class RuffAnalyzer:
             search_paths: List of Python files to search within.
 
         Returns:
-            Set of unused import names
-
+            A list of Reference objects. Precision may be low.
         """
         logger.debug(f"RuffAnalyzer looking for usages of {construct.full_name} ({construct.type}).")
         references: list[Reference] = []
@@ -205,14 +193,13 @@ class RuffAnalyzer:
 
         if not references:
             logger.debug(
-                f"RuffAnalyzer did not find direct usages for {construct.full_name}. This is expected due to Ruff's nature as a linter."
+                f"RuffAnalyzer did not find direct usages for {construct.full_name}. "
+                "This is expected due to Ruff's nature as a linter."
             )
 
         return references
 
-        Returns:
-            True if the file likely uses the construct
-
+    def analyze_batch(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
         """
         Analyze a batch of constructs.
         For Ruff, this will call find_usages for each construct as batch processing
@@ -226,8 +213,6 @@ class RuffAnalyzer:
     def __del__(self) -> None:
         logger.debug("RuffAnalyzer instance being deleted.")
 
-        Returns:
-            List of file batches
-
-        """
-        return [files[i : i + batch_size] for i in range(0, len(files), batch_size)]
+    # Allow closing if there were any persistent resources (none in this implementation)
+    def close(self) -> None:
+        logger.debug("RuffAnalyzer closed (no specific resources to release).")

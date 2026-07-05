@@ -9,13 +9,16 @@ Rope's accuracy for complex cases and Jedi's speed for straightforward ones.
 
 import time
 from pathlib import Path
-from typing import Any # For Any type hint
+from typing import Any  # For Any type hint
 
 from loguru import logger
 
 from uzpy.analyzer.jedi_analyzer import JediAnalyzer
 from uzpy.analyzer.rope_analyzer import RopeAnalyzer
 from uzpy.types import Construct, ConstructType, Reference
+
+# Below this construct count, prefer the more accurate but slower full-hybrid strategy.
+FULL_HYBRID_CONSTRUCT_THRESHOLD = 50
 
 
 class HybridAnalyzer:
@@ -86,11 +89,11 @@ class HybridAnalyzer:
         - uzpy/cli.py
         - uzpy/pipeline.py
         """
-        jedi_results = []
-        rope_results = []
+        jedi_results: list[Reference] = []
+        rope_results: list[Reference] = []
 
         # Try Jedi first (faster)
-        if self.jedi_available:
+        if self.jedi_available and self.jedi_analyzer:
             try:
                 jedi_refs = self.jedi_analyzer.find_usages(construct, search_paths)
                 jedi_results.extend(jedi_refs)
@@ -120,7 +123,7 @@ class HybridAnalyzer:
             if key not in unique_references:
                 unique_references[key] = ref
 
-        for ref in rope_results: # Add Rope's, potentially overwriting Jedi's if more precise
+        for ref in rope_results:  # Add Rope's, potentially overwriting Jedi's if more precise
             key = (ref.file_path.resolve(), ref.line_number, ref.column_number)
             # Simple strategy: prefer rope if both exist for the exact same spot,
             # or add if new. A more complex merge could compare context etc.
@@ -128,10 +131,10 @@ class HybridAnalyzer:
 
         final_references = list(unique_references.values())
 
-        if jedi_results or rope_results: # Log only if any analyzer ran
-             logger.debug(f"Merged results for {construct.full_name}: {len(final_references)} unique references.")
+        if jedi_results or rope_results:  # Log only if any analyzer ran
+            logger.debug(f"Merged results for {construct.full_name}: {len(final_references)} unique references.")
         else:
-             logger.debug(f"No results from Jedi or Rope for {construct.full_name}.")
+            logger.debug(f"No results from Jedi or Rope for {construct.full_name}.")
 
         return final_references
 
@@ -142,13 +145,13 @@ class HybridAnalyzer:
         results_by_construct: dict[Construct, list[Reference]]
 
         # Decide on strategy
-        if len(constructs) < 50 and self.rope_available: # Magic number 50, consider making configurable
+        if len(constructs) < FULL_HYBRID_CONSTRUCT_THRESHOLD and self.rope_available:
             strategy = "full_hybrid"
         elif self.jedi_available:
             strategy = "jedi_primary"
-        elif self.rope_available: # Fallback if only Rope is available
+        elif self.rope_available:  # Fallback if only Rope is available
             strategy = "rope_only"
-        else: # Should not happen due to __init__ check, but as a safeguard
+        else:  # Should not happen due to __init__ check, but as a safeguard
             logger.error("No underlying analyzers available for batch analysis.")
             return {c: [] for c in constructs}
 
@@ -158,17 +161,19 @@ class HybridAnalyzer:
             results_by_construct = self._analyze_full_hybrid(constructs, search_paths)
         elif strategy == "jedi_primary":
             results_by_construct = self._analyze_jedi_primary(constructs, search_paths)
-        else: # rope_only
+        else:  # rope_only
             results_by_construct = self._analyze_rope_only(constructs, search_paths)
 
         elapsed = time.time() - start_time
         logger.info(f"Hybrid analysis completed in {elapsed:.2f}s using {strategy} strategy")
         return results_by_construct
 
-    def _analyze_full_hybrid(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
+    def _analyze_full_hybrid(
+        self, constructs: list[Construct], search_paths: list[Path]
+    ) -> dict[Construct, list[Reference]]:
         results = {}
         for i, construct in enumerate(constructs):
-            if i % 10 == 0: # Log progress every 10 constructs
+            if i % 10 == 0:  # Log progress every 10 constructs
                 logger.debug(f"Processed {i}/{len(constructs)} constructs (full_hybrid)")
             try:
                 results[construct] = self.find_usages(construct, search_paths)
@@ -177,9 +182,11 @@ class HybridAnalyzer:
                 results[construct] = []
         return results
 
-    def _analyze_jedi_primary(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
-        if not self.jedi_analyzer: # Should not happen if jedi_available is true
-            return {c:[] for c in constructs}
+    def _analyze_jedi_primary(
+        self, constructs: list[Construct], search_paths: list[Path]
+    ) -> dict[Construct, list[Reference]]:
+        if not self.jedi_analyzer:  # Should not happen if jedi_available is true
+            return {c: [] for c in constructs}
 
         # Jedi analyzer's analyze_batch should return dict[Construct, list[Reference]]
         # If it returns dict[str, ...], it needs to be adapted or results converted here.
@@ -197,12 +204,10 @@ class HybridAnalyzer:
             else:
                 logger.warning(f"Jedi returned results for unknown construct name: {name}")
 
-
         candidates_for_rope_check = [
-            c for c in constructs
-            if c.type == ConstructType.METHOD or \
-               "." in c.full_name or \
-               len(results_by_construct.get(c, [])) == 0
+            c
+            for c in constructs
+            if c.type == ConstructType.METHOD or "." in c.full_name or len(results_by_construct.get(c, [])) == 0
         ]
 
         if candidates_for_rope_check and self.rope_available and self.rope_analyzer:
@@ -223,18 +228,22 @@ class HybridAnalyzer:
                         merged_map[key] = ref
                     for ref in rope_refs_for_candidate:
                         key = (ref.file_path.resolve(), ref.line_number, ref.column_number)
-                        merged_map[key] = ref # Rope might provide more accurate column or context
+                        merged_map[key] = ref  # Rope might provide more accurate column or context
 
                     results_by_construct[construct_candidate] = list(merged_map.values())
                 except Exception as e:
-                    logger.error(f"Error during Rope verification for {construct_candidate.full_name}: {e}", exc_info=True)
+                    logger.error(
+                        f"Error during Rope verification for {construct_candidate.full_name}: {e}", exc_info=True
+                    )
                     # Keep existing Jedi results if Rope fails for this specific construct
 
         return results_by_construct
 
-    def _analyze_rope_only(self, constructs: list[Construct], search_paths: list[Path]) -> dict[Construct, list[Reference]]:
-        if not self.rope_analyzer: # Should not happen if rope_available is true
-            return {c:[] for c in constructs}
+    def _analyze_rope_only(
+        self, constructs: list[Construct], search_paths: list[Path]
+    ) -> dict[Construct, list[Reference]]:
+        if not self.rope_analyzer:  # Should not happen if rope_available is true
+            return {c: [] for c in constructs}
 
         # Assuming rope_analyzer.analyze_batch returns dict[str(full_name), list[Reference]]
         temp_rope_results_by_name = self.rope_analyzer.analyze_batch(constructs, search_paths)
@@ -254,17 +263,17 @@ class HybridAnalyzer:
             "jedi_available": self.jedi_available,
             "project_path": str(self.project_path),
         }
-        if self.rope_analyzer and hasattr(self.rope_analyzer, 'get_project_info'):
+        if self.rope_analyzer and hasattr(self.rope_analyzer, "get_project_info"):
             status["rope_info"] = self.rope_analyzer.get_project_info()
-        if self.jedi_analyzer and hasattr(self.jedi_analyzer, 'get_project_info'):
+        if self.jedi_analyzer and hasattr(self.jedi_analyzer, "get_project_info"):
             status["jedi_info"] = self.jedi_analyzer.get_project_info()
         return status
 
     def close(self) -> None:
-        if self.rope_analyzer and hasattr(self.rope_analyzer, 'close'):
+        if self.rope_analyzer and hasattr(self.rope_analyzer, "close"):
             self.rope_analyzer.close()
         # Jedi doesn't typically need explicit cleanup of this type
         logger.debug("Hybrid analyzer resources (if any) closed.")
 
-    def __del__(self):
+    def __del__(self) -> None:
         self.close()

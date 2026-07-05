@@ -3,10 +3,9 @@
 """
 Pyright-based analyzer for uzpy.
 
-This module provides an analyzer that uses Pyright's type checking and
-language server capabilities for accurate and fast usage detection,
-replacing the slower Rope analyzer for many use cases.
-
+This module provides a PyrightAnalyzer class that uses the Pyright command-line
+tool (Microsoft's static type checker for Python) to find references to
+Python constructs. Pyright offers fast and accurate cross-file analysis.
 """
 
 import json
@@ -21,15 +20,8 @@ from uzpy.types import Construct, Reference
 
 class PyrightAnalyzer:
     """
-    Fast and accurate analyzer using Pyright.
-
-    This analyzer leverages Pyright's language server protocol capabilities
-    for accurate cross-file analysis. It's significantly faster than Rope
-    while maintaining good accuracy for most use cases.
-
-    Used in:
-    - src/uzpy/analyzer/__init__.py
-    - src/uzpy/analyzer/modern_hybrid_analyzer.py
+    An analyzer that uses the Pyright tool to find references to constructs.
+    Pyright is run as a subprocess, and its JSON output is parsed.
     """
 
     def __init__(self, project_root: Path, python_executable: str | None = None):
@@ -37,9 +29,10 @@ class PyrightAnalyzer:
         Initialize the PyrightAnalyzer.
 
         Args:
-            project_root: Root directory of the project
-            exclude_patterns: Patterns to exclude from analysis
-
+            project_root: The root directory of the project being analyzed.
+                          Pyright needs this to resolve imports correctly.
+            python_executable: Path to the python executable for Pyright's environment.
+                               If None, Pyright will try to discover it.
         """
         self.project_root = project_root.resolve()
         self.python_executable = python_executable
@@ -57,10 +50,7 @@ class PyrightAnalyzer:
             character: The 0-indexed character offset (UTF-16) of the symbol.
 
         Returns:
-            List of references to the construct
-
-        Used in:
-        - src/uzpy/analyzer/modern_hybrid_analyzer.py
+            A list of reference information dictionaries from Pyright's JSON output.
         """
         try:
             # Pyright's find references is not a direct CLI command.
@@ -69,12 +59,13 @@ class PyrightAnalyzer:
             # which includes definition locations and sometimes reference information, but not a direct
             # "find all references for symbol at X:Y" command that outputs simple references.
             #
-            # The TASKS.md suggested:
-            # cmd = [ "pyright", "--outputjson", f"--pythonpath={self.project_root}", "--files", str(construct.file_path)]
+            # The PLAN.md suggested:
+            # cmd = [ "pyright", "--outputjson", f"--pythonpath={self.project_root}",
+            #         "--files", str(construct.file_path)]
             # This command runs type checking and outputs errors/warnings, not references for a *specific* symbol.
             #
-            # To get references for a specific symbol, one would typically need to interact with Pyright as a language server
-            # or use a tool that wraps Pyright's LSP functions.
+            # To get references for a specific symbol, one would typically need to interact with
+            # Pyright as a language server or use a tool that wraps Pyright's LSP functions.
             #
             # Given the constraints of a simple subprocess call, a common workaround is to parse the *full analysis*
             # output if it contains enough detail, or use a different Pyright CLI option if one exists that's closer.
@@ -151,33 +142,10 @@ class PyrightAnalyzer:
             logger.error(f"Error running Pyright for {file_path}: {e}")
             return []
 
-    def _ensure_pyright_config(self):
-        """Ensure a basic pyrightconfig.json exists.
-
-"""
-        config_path = self.project_root / "pyrightconfig.json"
-        if not config_path.exists():
-            config = {
-                "include": ["**/*.py"],
-                "exclude": [*self.exclude_patterns, "**/node_modules", "**/__pycache__"],
-                "reportMissingImports": False,
-                "reportMissingTypeStubs": False,
-                "pythonVersion": "3.10",
-            }
-            config_path.write_text(json.dumps(config, indent=2))
-            logger.debug("Created pyrightconfig.json")
-
-    def _create_analysis_script(self, construct: Construct, reference_files: list[Path]) -> str:
+    def _get_symbol_position(self, construct: Construct) -> tuple[Path, int, int] | None:
         """
-        Create a temporary Python script for Pyright to analyze.
-
-        Args:
-            construct: The construct to find usages for
-            reference_files: List of files to analyze
-
-        Returns:
-            Python script content
-
+        Get the file path, line, and character for a construct's definition.
+        Pyright typically needs 0-indexed line and UTF-16 character offset.
         """
         # Tree-sitter nodes (if available on construct) provide byte offsets.
         # Converting to line/char and UTF-16 can be complex.
@@ -185,16 +153,16 @@ class PyrightAnalyzer:
         # and assume character 0 for the start of the line.
         # This might not be precise enough for Pyright in all cases.
         if construct.line_number is None:
-            return None
+            return None  # type: ignore[unreachable]  # defensive: line_number is declared non-Optional
 
         # Pyright LSP uses 0-indexed lines and 0-indexed UTF-16 character counts.
         # A simple approximation:
         line_0_indexed = construct.line_number - 1
 
-    def _file_to_module(self, file_path: Path) -> str | None:
-        """Convert file path to module path.
-
-"""
+        # Character offset is harder. If we have the node, we could use start_byte.
+        # If not, we might need to read the file line and find the name.
+        # For now, let's try to find the column of the construct name.
+        char_0_indexed = 0  # Default
         try:
             content = construct.file_path.read_text(encoding="utf-8").splitlines()
             if line_0_indexed < len(content):
@@ -222,8 +190,8 @@ class PyrightAnalyzer:
                            we filter Pyright's project-wide results).
 
         Returns:
-            List of references found
-
+            A list of Reference objects. Accuracy depends on Pyright's capabilities
+            and the method of interaction (direct CLI vs LSP).
         """
         logger.debug(f"PyrightAnalyzer looking for usages of {construct.full_name} ({construct.type}).")
 
@@ -273,18 +241,8 @@ class PyrightAnalyzer:
         logger.debug(f"PyrightAnalyzer found {len(references)} potential references for {construct.full_name}.")
         return references
 
-    def _file_imports_construct(self, file_path: Path, construct: Construct) -> bool:
-        """
-        Check if a file imports a specific construct.
-
-        Args:
-            file_path: File to check
-            construct: Construct to look for
-
-        Returns:
-            True if the file imports the construct
-
-        """
+    def _is_path_in_search_paths(self, path_to_check: Path, search_root: Path) -> bool:
+        """Checks if path_to_check is under search_root or is search_root itself."""
         try:
             if search_root.is_file():
                 return path_to_check.resolve() == search_root.resolve()

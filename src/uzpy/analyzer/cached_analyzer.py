@@ -13,7 +13,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-import diskcache
+import diskcache  # type: ignore[import-untyped]
 from loguru import logger
 
 from uzpy.types import Construct, Reference
@@ -33,16 +33,19 @@ class CachedAnalyzer:
     - src/uzpy/pipeline.py
     """
 
-    def __init__(self, analyzer: Any, cache_dir: Path, cache_name: str = "analyzer_cache"):
+    def __init__(self, analyzer: Any, cache_dir: Path | None = None, cache_name: str = "analyzer_cache"):
         """
         Initialize the CachedAnalyzer.
 
         Args:
             analyzer: The underlying analyzer to wrap
             cache_dir: Directory for cache storage (defaults to ~/.uzpy/cache)
+            cache_name: Sub-directory name for this analyzer's cache
 
         """
         self.analyzer = analyzer
+        if cache_dir is None:
+            cache_dir = Path.home() / ".uzpy" / "cache"
         self.cache_path = cache_dir / cache_name
         self.cache = diskcache.Cache(str(self.cache_path))  # Ensure cache_path is string
         logger.info(f"CachedAnalyzer initialized. Cache location: {self.cache_path}")
@@ -88,9 +91,31 @@ class CachedAnalyzer:
         Used in:
         - src/uzpy/analyzer/parallel_analyzer.py
         """
+        file_hash = self._get_file_hash(construct.file_path)
+        # Build the key from stable, order-preserving parts so identical
+        # constructs always hash to the same cache slot.
+        key_parts = (
+            "construct_analysis",
+            construct.full_name,
+            str(construct.file_path.name),
+            file_hash,
+            str(construct.line_number),
+            search_paths_hash,
+        )
+        return ":".join(key_parts)
+
+    def _get_search_paths_hash(self, search_paths: list[Path]) -> str:
+        """
         Generate a hash representing the state of all files in search_paths.
-        This is important because changes in reference files can invalidate
-        cached analysis results for a construct.
+
+        Changes in reference files must invalidate cached analysis results,
+        so the hash folds in the content of every file under the search paths.
+
+        Args:
+            search_paths: A list of paths to search for references.
+
+        Returns:
+            A string hash representing the collective state of the search paths.
         """
         path_hashes = []
         # Sort paths to ensure consistent hash order
@@ -129,17 +154,20 @@ class CachedAnalyzer:
         cached_result = self.cache.get(cache_key)
         if cached_result is not None:
             logger.debug(f"Cache hit for {construct.full_name} (key: {cache_key})")
-            return cached_result
+            return cached_result  # type: ignore[no-any-return]  # diskcache.get() is typed Any
 
         logger.debug(f"Cache miss for {construct.full_name} (key: {cache_key}). Analyzing...")
         if not hasattr(self.analyzer, "find_usages") or not callable(self.analyzer.find_usages):
             logger.error(f"Wrapped analyzer {type(self.analyzer)} does not have a callable 'find_usages' method.")
             return []
 
-    def clear_cache(self):
-        """Clear all cached data.
+        result = self.analyzer.find_usages(construct, search_paths)  # analyzer is Any (duck-typed)
+        self.cache.set(cache_key, result)
+        logger.debug(f"Stored analysis result for {construct.full_name} in cache (key: {cache_key})")
+        return result  # type: ignore[no-any-return]
 
-"""
+    def clear_cache(self) -> None:
+        """Clear all cached data."""
         self.cache.clear()
         logger.info("Cache cleared")
 

@@ -345,6 +345,10 @@ ignore = [
     # Added based on common needs or verbosity:
     'S311', # Standard pseudo-random generators are usually fine for non-crypto
     'T201', # Allow print statements, useful for CLI tools / debugging
+    'S324', # md5 is used only for cache keys, never for security
+    'S603', # subprocess calls target trusted tools (ruff, pyright), not user input
+    'PLC0415', # lazy imports are used deliberately to avoid cycles / optional deps
+    'ARG002', # visitor/interface methods keep unused params for signature conformance
 ]
 unfixable = [
     'F401', # Unused imports, good to keep manual control
@@ -368,4 +372,6 @@ ban-relative-imports = 'all' # Ban all relative imports for consistency
     'FBT002',  # Boolean default value (common in test parameters)
 ]
 'src/uzpy/modifier/libcst_modifier.py' = ['N802'] # LibCST visitor methods use CapWords
-'src/uzpy/cli_modern.py' = ['FBT001', 'FBT002'] # Typer CLI uses boolean flags
+'src/uzpy/modifier/safe_modifier.py' = ['N802', 'FBT001', 'FBT002'] # LibCST visitors + safe-mode flags
+'src/uzpy/cli_modern.py' = ['FBT001', 'FBT002', 'B008'] # Typer CLI uses boolean flags and Option() defaults
+'src/uzpy/pipeline.py' = ['FBT001', 'FBT002'] # dry_run / safe_mode pipeline flags

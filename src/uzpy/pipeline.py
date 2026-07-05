@@ -27,6 +27,8 @@ def run_analysis_and_modification(
     exclude_patterns: list[str] | None,
     dry_run: bool,
     safe_mode: bool = False,
+    parser_instance: Any | None = None,
+    analyzer_instance: Any | None = None,
 ) -> dict[Construct, list[Reference]]:
     """
     Orchestrates the full uzpy pipeline: discovery, parsing, analysis,
@@ -100,11 +102,15 @@ def run_analysis_and_modification(
     # Step 3: Analyze usages
     logger.info("Finding references...")
     try:
-        # Use modern analyzer stack
-        base_analyzer = ModernHybridAnalyzer(ref_path, exclude_patterns)
-        cached_analyzer = CachedAnalyzer(base_analyzer)
-        analyzer = ParallelAnalyzer(cached_analyzer)
-        logger.debug("Initialized modern parallel cached analyzer")
+        if analyzer_instance is not None:
+            analyzer = analyzer_instance
+            logger.debug(f"Using provided analyzer: {type(analyzer).__name__}")
+        else:
+            # Default modern analyzer stack: hybrid engine, cached, parallelized.
+            base_analyzer = ModernHybridAnalyzer(ref_path, exclude_patterns)
+            cached_analyzer = CachedAnalyzer(base_analyzer)
+            analyzer = ParallelAnalyzer(cached_analyzer)
+            logger.debug("Initialized modern parallel cached analyzer")
     except Exception as e:
         logger.error(f"Failed to initialize analyzer: {e}")
         raise
@@ -113,12 +119,8 @@ def run_analysis_and_modification(
     file_discovery = FileDiscovery(exclude_patterns)
     ref_files = list(file_discovery.find_python_files(ref_path))
 
-    # Use parallel batch processing for better performance
-    def progress_callback(completed, total):
-        """    """
-        logger.info(f"Progress: {completed}/{total} constructs analyzed")
-
-    usage_results = analyzer.find_usages_batch(all_constructs, ref_files, progress_callback=progress_callback)
+    # Batch-analyze every construct against the reference files.
+    usage_results = analyzer.analyze_batch(all_constructs, ref_files)
 
     # Summary of analysis results
     constructs_with_refs = sum(1 for refs in usage_results.values() if refs)
@@ -134,8 +136,9 @@ def run_analysis_and_modification(
             # This should be the common ancestor or the main project directory being analyzed.
             # Using ref_path's parent (if file) or itself (if dir) is a common heuristic.
             project_root_for_modifier = ref_path.parent if ref_path.is_file() else ref_path
-            
-            # Use safe modifier if requested
+
+            # Use safe modifier if requested (declared Any: branches assign different concrete classes)
+            modifier: Any
             if safe_mode:
                 logger.info("Using SafeLibCSTModifier to prevent syntax corruption")
                 modifier = SafeLibCSTModifier(project_root_for_modifier)
@@ -153,7 +156,8 @@ def run_analysis_and_modification(
                 )
             elif total_files_processed_for_modification > 0:  # Files were processed but none needed changes
                 logger.info(
-                    f"{total_files_processed_for_modification} files processed, but no docstring updates were necessary."
+                    f"{total_files_processed_for_modification} files processed, "
+                    "but no docstring updates were necessary."
                 )
             else:  # No files were relevant for modification based on usage_results
                 logger.info("No files identified for docstring modification.")
@@ -177,4 +181,4 @@ def run_analysis_and_modification(
         except Exception as e:
             logger.warning(f"Error closing analyzer {type(analyzer).__name__}: {e}")
 
-    return usage_results
+    return usage_results  # type: ignore[no-any-return]  # analyzer is Any (duck-typed pluggable stack)

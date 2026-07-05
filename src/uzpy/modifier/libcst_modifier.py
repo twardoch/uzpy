@@ -20,6 +20,19 @@ from loguru import logger
 from uzpy.types import Construct, Reference
 
 
+def _strip_docstring_quotes(docstring: str) -> str:
+    """Return the inner text of a docstring literal, without its quote delimiters.
+
+    Handles the four delimiter styles (\"\"\", ''', ", ') so callers can operate
+    on the content regardless of how the source quoted it.
+    """
+    if docstring.startswith(('"""', "'''")):
+        return docstring[3:-3]
+    if docstring.startswith(('"', "'")):
+        return docstring[1:-1]
+    return docstring
+
+
 class DocstringModifier(cst.CSTTransformer):
     """
     LibCST transformer for updating docstrings with usage information.
@@ -48,10 +61,10 @@ class DocstringModifier(cst.CSTTransformer):
         """
         self.usage_map = usage_map
         self.project_root = project_root
-        self.current_file = None
+        self.current_file: Path | None = None
 
         # Build lookup map for faster access
-        self.construct_lookup = {}
+        self.construct_lookup: dict[Path, dict[str, Construct]] = {}
         for construct in usage_map:
             # Use file path as key for simpler matching
             if construct.file_path not in self.construct_lookup:
@@ -74,7 +87,9 @@ class DocstringModifier(cst.CSTTransformer):
         Used in:
         - modifier/libcst_modifier.py
         """
-        return self._update_construct_docstring(original_node, updated_node, "function")
+        return self._update_construct_docstring(  # type: ignore[return-value]
+            original_node, updated_node, "function"
+        )
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
         """Update class docstrings with usage information.
@@ -82,7 +97,7 @@ class DocstringModifier(cst.CSTTransformer):
         Used in:
         - modifier/libcst_modifier.py
         """
-        return self._update_construct_docstring(original_node, updated_node, "class")
+        return self._update_construct_docstring(original_node, updated_node, "class")  # type: ignore[return-value]
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
         """Update module docstrings with usage information.
@@ -110,7 +125,12 @@ class DocstringModifier(cst.CSTTransformer):
 
         return updated_node
 
-    def _update_construct_docstring(self, original_node, updated_node, construct_type: str):
+    def _update_construct_docstring(
+        self,
+        original_node: cst.FunctionDef | cst.ClassDef,
+        updated_node: cst.FunctionDef | cst.ClassDef,
+        construct_type: str,
+    ) -> cst.FunctionDef | cst.ClassDef:
         """Generic method to update construct docstrings.
 
         Used in:
@@ -137,12 +157,12 @@ class DocstringModifier(cst.CSTTransformer):
         if docstring_node is None:
             # Add a new docstring if none exists
             new_docstring = self._create_new_docstring(references)
-            return self._add_docstring_to_node(updated_node, new_docstring)
+            return self._add_docstring_to_node(updated_node, new_docstring)  # type: ignore[return-value]
         # Update existing docstring
         current_content = docstring_node.value
         updated_content = self._update_docstring_content(current_content, references)
         new_docstring_node = docstring_node.with_changes(value=updated_content)
-        return self._replace_docstring_in_node(updated_node, new_docstring_node)
+        return self._replace_docstring_in_node(updated_node, new_docstring_node)  # type: ignore[return-value]
 
     def _find_construct(self, name: str, line_number: int) -> Construct | None:
         """Find a construct by name and line number.
@@ -166,7 +186,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         return construct
 
-    def _get_node_line(self, node) -> int:
+    def _get_node_line(self, node: cst.CSTNode) -> int:
         """Get the line number of a node (simplified - LibCST doesn't store line numbers directly).
 
         Used in:
@@ -176,7 +196,7 @@ class DocstringModifier(cst.CSTTransformer):
         # This is a limitation we'll address by using the construct's stored line number.
         return 1
 
-    def _get_docstring_node(self, node) -> SimpleString | None:
+    def _get_docstring_node(self, node: cst.CSTNode) -> SimpleString | None:
         """Extract the docstring node from a function, class, or module.
 
         Used in:
@@ -208,9 +228,11 @@ class DocstringModifier(cst.CSTTransformer):
         - modifier/libcst_modifier.py
         - tests/test_modifier.py
         """
-        # Remove quotes from current docstring
-        quote_char = '"""' if current_docstring.startswith('"""') else '"'
-        content = current_docstring.strip(quote_char)
+        # Strip whichever quote style the original docstring used. The result is
+        # always re-emitted as a triple-quoted string below, because appending a
+        # "Used in:" section makes the docstring multi-line and single/double
+        # quote delimiters cannot span newlines.
+        content = _strip_docstring_quotes(current_docstring)
 
         # Detect and preserve indentation from the original docstring
         lines = content.split("\n")
@@ -265,10 +287,10 @@ class DocstringModifier(cst.CSTTransformer):
         # Combine content and usage
         updated_content = f"{cleaned_content.rstrip()}\n\n{usage_section}" if cleaned_content.strip() else usage_section
 
-        # Add proper indentation to closing quotes for triple-quoted strings
-        if quote_char == '"""' and base_indent:
-            return f"{quote_char}{updated_content}{base_indent}{quote_char}"
-        return f"{quote_char}{updated_content}{quote_char}"
+        # Always emit a triple-quoted docstring: the content is now multi-line.
+        if base_indent:
+            return f'"""{updated_content}{base_indent}"""'
+        return f'"""{updated_content}"""'
 
     def _extract_existing_usage_paths(self, content: str) -> tuple[str, set[str], str]:
         """Extract existing "Used in:" paths from docstring and return cleaned content.
@@ -292,11 +314,8 @@ class DocstringModifier(cst.CSTTransformer):
         # Extract indentation from the "Used in:" line (look for immediate indentation before "Used in:")
         # Match a newline, then optionally another newline, then capture spaces/tabs before "Used in:"
         indent_match = re.search(r"\n\n?(\s*)Used in:", content)
-        if indent_match:
-            # Extract just the spaces/tabs, not including newlines
-            original_indent = indent_match.group(1)
-        else:
-            original_indent = ""
+        # Extract just the spaces/tabs, not including newlines
+        original_indent = indent_match.group(1) if indent_match else ""
 
         # Extract existing paths
         existing_paths = set()
@@ -356,7 +375,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         return f'"""{usage_section}{base_indent}"""'
 
-    def _add_docstring_to_node(self, node, docstring: str):
+    def _add_docstring_to_node(self, node: cst.CSTNode, docstring: str) -> cst.CSTNode:
         """Add a docstring to a node that doesn't have one.
 
         Used in:
@@ -372,7 +391,7 @@ class DocstringModifier(cst.CSTTransformer):
 
         return node
 
-    def _replace_docstring_in_node(self, node, new_docstring_node):
+    def _replace_docstring_in_node(self, node: cst.CSTNode, new_docstring_node: cst.SimpleString) -> cst.CSTNode:
         """Replace the docstring in a node.
 
         Used in:
@@ -468,6 +487,38 @@ class LibCSTModifier:
             logger.error(f"Failed to modify {file_path}: {e}")
             return False
 
+    def modify_string(
+        self,
+        source_code: str,
+        file_path: Path,
+        usage_map: dict[Construct, list[Reference]],
+    ) -> str:
+        """
+        Modify docstrings in a source string and return the modified string.
+
+        Unlike modify_file, this never touches disk. It is used both for
+        testing and for callers that already hold source in memory. On any
+        parse/transform error the original source is returned unchanged, so the
+        caller always gets syntactically valid Python back.
+
+        Args:
+            source_code: The Python source to transform.
+            file_path: Path the source represents (used for self-reference
+                filtering and relative paths in the "Used in:" section).
+            usage_map: Mapping of constructs to their usage references.
+
+        Returns:
+            The transformed source, or the original source on failure.
+        """
+        try:
+            tree = cst.parse_module(source_code)
+            modifier = DocstringModifier(usage_map, self.project_root)
+            modifier.set_current_file(file_path)
+            return tree.visit(modifier).code
+        except Exception as e:
+            logger.error(f"Failed to modify source for {file_path}: {e}")
+            return source_code
+
     def modify_files(self, usage_results: dict[Construct, list[Reference]]) -> dict[str, bool]:
         """
         Modify multiple files based on usage results.
@@ -528,27 +579,19 @@ class DocstringCleaner(cst.CSTTransformer):
     - uzpy/modifier/__init__.py
     """
 
-    def __init__(self):
-        """Initialize the docstring cleaner.
-
-"""
+    def __init__(self) -> None:
+        """Initialize the docstring cleaner."""
 
     def leave_FunctionDef(self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef) -> cst.FunctionDef:
-        """Clean function docstrings by removing usage information.
-
-"""
-        return self._clean_construct_docstring(updated_node)
+        """Clean function docstrings by removing usage information."""
+        return self._clean_construct_docstring(updated_node)  # type: ignore[return-value]
 
     def leave_ClassDef(self, original_node: cst.ClassDef, updated_node: cst.ClassDef) -> cst.ClassDef:
-        """Clean class docstrings by removing usage information.
-
-"""
-        return self._clean_construct_docstring(updated_node)
+        """Clean class docstrings by removing usage information."""
+        return self._clean_construct_docstring(updated_node)  # type: ignore[return-value]
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        """Clean module docstrings by removing usage information.
-
-"""
+        """Clean module docstrings by removing usage information."""
         if not updated_node.body:
             return updated_node
 
@@ -566,10 +609,10 @@ class DocstringCleaner(cst.CSTTransformer):
 
         return updated_node
 
-    def _clean_construct_docstring(self, updated_node):
-        """Generic method to clean construct docstrings.
-
-"""
+    def _clean_construct_docstring(
+        self, updated_node: cst.FunctionDef | cst.ClassDef
+    ) -> cst.FunctionDef | cst.ClassDef:
+        """Generic method to clean construct docstrings."""
         # Find and clean the docstring
         docstring_node = self._get_docstring_node(updated_node)
         if docstring_node is None:
@@ -581,14 +624,12 @@ class DocstringCleaner(cst.CSTTransformer):
 
         if cleaned_content != current_content:
             new_docstring_node = docstring_node.with_changes(value=cleaned_content)
-            return self._replace_docstring_in_node(updated_node, new_docstring_node)
+            return self._replace_docstring_in_node(updated_node, new_docstring_node)  # type: ignore[return-value]
 
         return updated_node
 
-    def _get_docstring_node(self, node) -> SimpleString | None:
-        """Extract the docstring node from a function, class, or module.
-
-"""
+    def _get_docstring_node(self, node: cst.CSTNode) -> SimpleString | None:
+        """Extract the docstring node from a function, class, or module."""
         body = None
 
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
@@ -609,12 +650,9 @@ class DocstringCleaner(cst.CSTTransformer):
         return None
 
     def _clean_docstring_content(self, current_docstring: str) -> str:
-        """Remove 'Used in:' sections from docstring content.
-
-"""
-        # Remove quotes from current docstring
-        quote_char = '"""' if current_docstring.startswith('"""') else '"'
-        content = current_docstring.strip(quote_char)
+        """Remove 'Used in:' sections from docstring content."""
+        # Strip whichever quote style the original docstring used.
+        content = _strip_docstring_quotes(current_docstring)
 
         # Use the same pattern as in DocstringModifier to remove "Used in:" sections
         pattern = r"(\n\s*)(Used in:(?:\s*\n(?:\s*-\s*[^\n]+\n?)*)\s*)"
@@ -623,13 +661,14 @@ class DocstringCleaner(cst.CSTTransformer):
         # Clean up any trailing whitespace
         cleaned_content = cleaned_content.rstrip()
 
-        # Add back quotes
-        return f"{quote_char}{cleaned_content}{quote_char}"
+        # Preserve a triple-quoted string for multi-line content; a single-line
+        # docstring can safely use double quotes.
+        if "\n" in cleaned_content:
+            return f'"""{cleaned_content}"""'
+        return f'"{cleaned_content}"'
 
-    def _replace_docstring_in_node(self, node, new_docstring_node):
-        """Replace the docstring in a node.
-
-"""
+    def _replace_docstring_in_node(self, node: cst.CSTNode, new_docstring_node: cst.SimpleString) -> cst.CSTNode:
+        """Replace the docstring in a node."""
         if hasattr(node, "body") and isinstance(node.body, cst.IndentedBlock):
             # Function or class
             old_body = list(node.body.body)

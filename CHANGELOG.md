@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - Source recovery and modernization (2026-07-05)
+
+The `src/uzpy` tree had been corrupted by an earlier automated commit that merged
+and truncated docstrings, deleting real code along the way. The package could not
+be imported and the CLI could not start. Recovered to a fully working state:
+
+- **Syntax errors** repaired in `cached_analyzer`, `parallel_analyzer`,
+  `ruff_analyzer` (unterminated/merged docstrings that deleted method bodies).
+- **`ModernHybridAnalyzer.__init__`** reconstructed: it now initialises the
+  ruff / ast-grep / pyright sub-analyzers and defines `use_fallback`; its
+  signature accepts `(project_root, exclude_patterns, config, python_executable)`
+  so both the pipeline and the Typer CLI construct it correctly.
+- **`pipeline.run_analysis_and_modification`** signature restored
+  (`parser_instance` / `analyzer_instance`) and the phantom `find_usages_batch`
+  call replaced with the real `analyze_batch` API.
+- **`cli_modern`, `watcher`, `pyright_analyzer`, `cached_parser`** restored from
+  the last coherent revision, clearing 83 undefined-name references; the `uzpy`
+  entry point now starts.
+- **Docstring corruption bug fixed**: `_update_docstring_content` re-emitted
+  single/double-quoted docstrings that had become multi-line, producing invalid
+  Python. Docstrings are now always re-emitted triple-quoted.
+- **`ParallelAnalyzer`** strips the unpicklable tree-sitter node before dispatching
+  constructs to worker processes.
+- `astgrep_analyzer` no longer imports the non-existent `sgql` module; the
+  ast-grep backend degrades cleanly when the bindings are unavailable.
+- `multiprocessing-logging` is now an optional import.
+- Test suite green (59 passed); `ruff` and `mypy` clean; CLI verified end-to-end.
+
 ### Fixed - Critical Corruption Prevention (2025-07-25)
 
 #### 🐛 Fixed Python Syntax Corruption

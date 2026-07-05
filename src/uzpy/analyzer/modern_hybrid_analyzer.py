@@ -10,7 +10,7 @@ and fast usage detection.
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from loguru import logger
 
@@ -28,7 +28,7 @@ class ModernHybridAnalyzer:
 
     This analyzer uses a tiered approach:
     1. Ruff for quick basic detection
-    2. ast-grep for structural pattern matching  
+    2. ast-grep for structural pattern matching
     3. Pyright for accurate type-based analysis
     4. Traditional analyzers (Rope/Jedi) as smart fallbacks
 
@@ -44,34 +44,53 @@ class ModernHybridAnalyzer:
     def __init__(
         self,
         project_root: Path,
-        python_executable: str | None = None,  # For Pyright
+        exclude_patterns: list[str] | None = None,
         config: dict[str, Any] | None = None,
+        python_executable: str | None = None,  # For Pyright
     ):
         """
         Initialize the ModernHybridAnalyzer.
 
         Args:
             project_root: Root directory of the project
-            exclude_patterns: Patterns to exclude from analysis
-            use_fallback: Whether to use traditional analyzers as fallbacks
+            exclude_patterns: Patterns to exclude from analysis (used by the
+                optional traditional-analyzer fallback)
+            config: Feature toggles (use_ruff, use_astgrep, use_pyright,
+                use_fallback, short_circuit_threshold)
+            python_executable: Python interpreter for the Pyright backend
 
         """
         self.project_root = project_root
+        self.exclude_patterns = exclude_patterns or []
         self.config = config if config is not None else {}
 
-        # Initialize individual analyzers
-        # These could be conditionally initialized based on config
-        if self.config.get("use_ruff", True):  # Default to True if not specified
+        # Initialize individual analyzers, each toggleable via config.
+        self.ruff_analyzer: RuffAnalyzer | None
+        if self.config.get("use_ruff", True):
             self.ruff_analyzer = RuffAnalyzer(project_root)
         else:
             self.ruff_analyzer = None
 
-        # Initialize fallback analyzer if enabled
+        self.ast_grep_analyzer: AstGrepAnalyzer | None
+        if self.config.get("use_astgrep", True):
+            self.ast_grep_analyzer = AstGrepAnalyzer(project_root)
+        else:
+            self.ast_grep_analyzer = None
+
+        self.pyright_analyzer: PyrightAnalyzer | None
+        if self.config.get("use_pyright", True):
+            self.pyright_analyzer = PyrightAnalyzer(project_root, python_executable)
+        else:
+            self.pyright_analyzer = None
+
+        # Optionally fall back to the traditional (jedi/rope) analyzer stack.
+        self.use_fallback = self.config.get("use_fallback", False)
         self.fallback_analyzer = None
-        if use_fallback:
+        if self.use_fallback:
             try:
                 from uzpy.analyzer.hybrid_analyzer import HybridAnalyzer
-                self.fallback_analyzer = HybridAnalyzer(project_root, exclude_patterns)
+
+                self.fallback_analyzer = HybridAnalyzer(project_root, self.exclude_patterns)
                 logger.debug("Initialized traditional analyzer fallback")
             except Exception as e:
                 logger.warning(f"Failed to initialize fallback analyzer: {e}")
@@ -106,7 +125,7 @@ class ModernHybridAnalyzer:
         """
         all_references: dict[tuple[Path, int, int], Reference] = {}  # Use (path, line, col) as key for deduplication
 
-        def _add_references(new_refs: list[Reference]):
+        def _add_references(new_refs: list[Reference]) -> None:
             for ref in new_refs:
                 key = (ref.file_path.resolve(), ref.line_number, ref.column_number)
                 if key not in all_references:  # Add only if not already present
@@ -132,13 +151,13 @@ class ModernHybridAnalyzer:
         if self.use_fallback and self.fallback_analyzer and len(all_references) == 0:
             try:
                 logger.debug(f"Using traditional analyzer fallback for {construct.name}")
-                fallback_refs = self.fallback_analyzer.find_usages(construct, reference_files)
+                fallback_refs = self.fallback_analyzer.find_usages(construct, search_paths)
                 for ref in fallback_refs:
-                    key = (ref.file_path, ref.line_number)
+                    key = (ref.file_path.resolve(), ref.line_number, ref.column_number)
                     all_references[key] = ref
                 logger.debug(f"Traditional fallback found {len(fallback_refs)} references")
             except Exception as e:
                 logger.debug(f"Traditional fallback failed: {e}")
 
-        # Return deduplicated references  
+        # Return deduplicated references
         return list(all_references.values())

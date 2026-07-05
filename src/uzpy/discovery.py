@@ -72,7 +72,7 @@ class FileDiscovery:
 
         # Compile pathspec for efficient matching
         self.spec = pathspec.PathSpec.from_lines("gitwildmatch", self.exclude_patterns)
-        self.root_path = None  # Will be set during find_python_files
+        self.root_path: Path | None = None  # Will be set during find_python_files
         logger.debug(f"Initialized with {len(self.exclude_patterns)} exclude patterns")
 
     def find_python_files(self, root_path: Path) -> Iterator[Path]:

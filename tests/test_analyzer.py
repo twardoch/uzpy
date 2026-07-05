@@ -15,9 +15,7 @@ from uzpy.parser import Construct, ConstructType
 
 @pytest.fixture
 def sample_project():
-    """Create a sample project structure for testing.
-
-"""
+    """Create a sample project structure for testing."""
     project_dir = Path(tempfile.mkdtemp())
 
     # Create main module
@@ -82,9 +80,7 @@ class UnusedClass:
 
 @pytest.fixture
 def sample_constructs(sample_project):
-    """Create sample constructs for testing.
-
-"""
+    """Create sample constructs for testing."""
     return [
         Construct(
             name="helper_function",
@@ -122,9 +118,7 @@ def sample_constructs(sample_project):
 
 
 def test_hybrid_analyzer_initialization(sample_project):
-    """Test HybridAnalyzer initialization.
-
-"""
+    """Test HybridAnalyzer initialization."""
     analyzer = HybridAnalyzer(sample_project)
     assert analyzer.project_path == sample_project
     assert analyzer.rope_analyzer is not None
@@ -132,9 +126,7 @@ def test_hybrid_analyzer_initialization(sample_project):
 
 
 def test_find_usages_with_results(sample_project, sample_constructs):
-    """Test finding usages for constructs that are actually used.
-
-"""
+    """Test finding usages for constructs that are actually used."""
     analyzer = HybridAnalyzer(sample_project)
 
     # Test helper_function which is imported and called in main.py
@@ -152,9 +144,7 @@ def test_find_usages_with_results(sample_project, sample_constructs):
 
 
 def test_find_usages_no_results(sample_project, sample_constructs):
-    """Test finding usages for constructs that are not used.
-
-"""
+    """Test finding usages for constructs that are not used."""
     analyzer = HybridAnalyzer(sample_project)
 
     # Test unused_function which is not referenced anywhere
@@ -168,9 +158,7 @@ def test_find_usages_no_results(sample_project, sample_constructs):
 
 
 def test_find_usages_class(sample_project, sample_constructs):
-    """Test finding usages for class constructs.
-
-"""
+    """Test finding usages for class constructs."""
     analyzer = HybridAnalyzer(sample_project)
 
     # Test UserClass which is imported and instantiated in main.py
@@ -184,9 +172,7 @@ def test_find_usages_class(sample_project, sample_constructs):
 
 
 def test_analyze_multiple_constructs(sample_project, sample_constructs):
-    """Test analyzing multiple constructs at once.
-
-"""
+    """Test analyzing multiple constructs at once."""
     analyzer = HybridAnalyzer(sample_project)
 
     ref_files = [sample_project / "main.py"]
@@ -212,9 +198,7 @@ def test_analyze_multiple_constructs(sample_project, sample_constructs):
 
 
 def test_analyzer_statistics(sample_project, sample_constructs):
-    """Test analyzer statistics generation.
-
-"""
+    """Test analyzer statistics generation."""
     analyzer = HybridAnalyzer(sample_project)
 
     ref_files = [sample_project / "main.py"]
@@ -239,9 +223,7 @@ def test_analyzer_statistics(sample_project, sample_constructs):
 
 
 def test_analyzer_with_nonexistent_files(sample_project, sample_constructs):
-    """Test analyzer behavior with non-existent reference files.
-
-"""
+    """Test analyzer behavior with non-existent reference files."""
     analyzer = HybridAnalyzer(sample_project)
 
     # Try to analyze with non-existent file
@@ -255,9 +237,7 @@ def test_analyzer_with_nonexistent_files(sample_project, sample_constructs):
 
 
 def test_analyzer_reference_attributes(sample_project, sample_constructs):
-    """Test that references include required attributes.
-
-"""
+    """Test that references include required attributes."""
     analyzer = HybridAnalyzer(sample_project)
 
     helper_construct = sample_constructs[0]  # helper_function
@@ -275,9 +255,7 @@ def test_analyzer_reference_attributes(sample_project, sample_constructs):
 
 
 def test_analyzer_error_handling():
-    """Test analyzer error handling with invalid project.
-
-"""
+    """Test analyzer error handling with invalid project."""
     # Try to create analyzer with non-existent project
     analyzer = HybridAnalyzer(Path("/nonexistent/project"))
 
@@ -298,9 +276,7 @@ def test_analyzer_error_handling():
 
 
 def test_analyzer_performance_tracking(sample_project, sample_constructs):
-    """Test that analyzer tracks performance metrics.
-
-"""
+    """Test that analyzer tracks performance metrics."""
     analyzer = HybridAnalyzer(sample_project)
 
     ref_files = [sample_project / "main.py"]

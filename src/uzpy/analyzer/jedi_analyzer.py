@@ -12,8 +12,9 @@ Used in:
 
 import time
 from pathlib import Path
+from typing import Any
 
-import jedi
+import jedi  # type: ignore[import-untyped]
 from loguru import logger
 
 from uzpy.types import Construct, ConstructType, Reference
@@ -322,7 +323,7 @@ class JediAnalyzer:
 
         return results
 
-    def get_project_info(self) -> dict[str, any]:
+    def get_project_info(self) -> dict[str, Any]:
         """Get information about the Jedi project.
 
         Used in:

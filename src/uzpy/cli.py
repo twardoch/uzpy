@@ -11,4 +11,6 @@ This module provides the main command-line interface for uzpy using modern
 Python CLI tools with beautiful output and progress tracking.
 """
 
-from uzpy.cli_modern import cli
+from uzpy.cli_modern import app as cli
+
+__all__ = ["cli"]
