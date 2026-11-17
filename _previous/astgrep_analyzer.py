@@ -10,7 +10,6 @@ structural pattern matching across Python codebases.
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
 
 from loguru import logger
 

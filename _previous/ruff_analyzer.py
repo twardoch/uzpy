@@ -11,7 +11,6 @@ or Jedi, it's significantly faster for common use cases.
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
 
 from loguru import logger
 

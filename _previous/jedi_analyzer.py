@@ -12,7 +12,6 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Optional
 
 import jedi
 from loguru import logger

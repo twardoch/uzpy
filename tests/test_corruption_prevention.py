@@ -313,4 +313,3 @@ class TestRegressionPrevention:
                 pytest.fail(f"Current modifier source has syntax error: {e}")
 
         # TODO: Implement full self-modification test in integration tests
-        pass

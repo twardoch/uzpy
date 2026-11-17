@@ -9,7 +9,6 @@ and fast usage detection.
 """
 
 from pathlib import Path
-from typing import Optional, Union
 
 from loguru import logger
 

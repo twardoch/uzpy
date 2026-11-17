@@ -10,7 +10,7 @@ performance for repeated operations on the same files.
 
 import hashlib
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
 import diskcache
 from loguru import logger

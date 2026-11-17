@@ -11,7 +11,6 @@ replacing the slower Rope analyzer for many use cases.
 import json
 import subprocess
 from pathlib import Path
-from typing import Optional, Union
 
 from loguru import logger
 

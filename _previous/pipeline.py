@@ -8,7 +8,6 @@ out of cli.py to separate user interaction from core functionality.
 """
 
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 

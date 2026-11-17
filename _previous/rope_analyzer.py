@@ -12,7 +12,6 @@ Used in:
 
 import time
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 from rope.base.exceptions import ModuleSyntaxError, ResourceNotFoundError
